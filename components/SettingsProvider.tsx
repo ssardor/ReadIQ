@@ -47,7 +47,7 @@ const applyLanguageToDocument = (language: Language) => {
 
 export const SettingsProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
   const [theme, setThemeState] = useState<ThemePreference>(detectInitialTheme)
-  const [language, setLanguageState] = useState<Language>(detectInitialLanguage)
+  const [language, setLanguageState] = useState<Language>('en')
   const [isReady, setIsReady] = useState(false)
 
   useEffect(() => {
@@ -56,6 +56,11 @@ export const SettingsProvider: React.FC<React.PropsWithChildren> = ({ children }
       window.localStorage.setItem(THEME_STORAGE_KEY, theme)
     }
   }, [theme])
+
+  useEffect(() => {
+    const initialLanguage = detectInitialLanguage()
+    setLanguageState(initialLanguage)
+  }, [])
 
   useEffect(() => {
     applyLanguageToDocument(language)
