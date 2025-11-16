@@ -310,7 +310,7 @@ export default function Dashboard({ profile, assignments, analytics }: Dashboard
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 sm:text-xl">Upcoming</h3>
-                      <p className="text-sm text-gray-500">Quizzes appear in the order you'll take them.</p>
+                      <p className="text-sm text-gray-500">Quizzes appear in the order you&apos;ll take them.</p>
                     </div>
                     <Link href="/student/quizzes" className="text-sm font-medium text-primary-600 hover:underline">
                       View all
@@ -380,7 +380,7 @@ export default function Dashboard({ profile, assignments, analytics }: Dashboard
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 sm:text-xl">Recently completed</h3>
-                      <p className="text-sm text-gray-500">Review what you've already tackled.</p>
+                      <p className="text-sm text-gray-500">Review what you&apos;ve already tackled.</p>
                     </div>
                   </div>
                   {completedPreview.length ? (
