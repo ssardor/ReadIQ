@@ -73,7 +73,7 @@ const StudentQuizPage: React.FC<PageProps> = ({ assignmentId }) => {
   const startedAtRef = useRef<number>(Date.now())
 
   const assignment = payload?.assignment
-  const questions = payload?.questions ?? []
+  const questions = useMemo(() => payload?.questions ?? [], [payload])
   const attempt = payload?.attempt
   const showResults = Boolean(submission || attempt)
   const attemptSummary = submission?.attempt ?? attempt ?? null

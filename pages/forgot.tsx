@@ -89,7 +89,7 @@ export default function ForgotPassword() {
               <form className="space-y-6" onSubmit={handleSubmit}>
                 <div>
                   <p className="text-sm text-gray-600 mb-4">
-                    Enter your email address and we'll send you a link to reset your password.
+                    Enter your email address and we&apos;ll send you a link to reset your password.
                   </p>
                   <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                     Email address
@@ -125,11 +125,11 @@ export default function ForgotPassword() {
                   Check your email
                 </h3>
                 <p className="text-sm text-gray-600 mb-6">
-                  We've sent a password reset link to <strong>{email}</strong>.
+                  We&apos;ve sent a password reset link to <strong>{email}</strong>.
                   Click the link in the email to reset your password.
                 </p>
                 <p className="text-xs text-gray-500">
-                  Didn't receive the email? Check your spam folder or{' '}
+                  Didn&apos;t receive the email? Check your spam folder or{' '}
                   <button
                     onClick={() => setIsSubmitted(false)}
                     className="text-primary-600 hover:text-primary-500 font-medium"

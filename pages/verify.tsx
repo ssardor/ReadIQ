@@ -77,13 +77,13 @@ export default function Verify() {
                   Check Your Email
                 </h2>
                 <p className="text-gray-600 mb-4">
-                  We've sent a verification link to your email address.
+                  We&apos;ve sent a verification link to your email address.
                   Please click the link to verify your account.
                 </p>
                 <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-6">
                   <p className="text-sm text-blue-800">
                     <strong>Note:</strong> The verification link will expire in 24 hours.
-                    If you don't see the email, check your spam folder.
+                    If you don&apos;t see the email, check your spam folder.
                   </p>
                 </div>
                 <div className="text-sm text-gray-500">

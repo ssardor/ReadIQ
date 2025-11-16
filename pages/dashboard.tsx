@@ -31,7 +31,7 @@ const formatDateTime = (value: string | null | undefined) => {
 }
 
 export default function Dashboard({ profile, assignments, analytics }: DashboardProps) {
-  const assignmentList = Array.isArray(assignments) ? assignments : []
+  const assignmentList = useMemo(() => (Array.isArray(assignments) ? assignments : []), [assignments])
   const completedCount = assignmentList.filter((item) => item.status === 'completed').length
   const nextScheduled = useMemo(() => {
     return assignmentList
