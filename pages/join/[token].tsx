@@ -42,13 +42,13 @@ const JoinGroupPage: React.FC = () => {
         if (payload.alreadyMember) {
           setStatus('already')
           setMessage(payload.message || 'Вы уже состоите в группе.')
-          setTimeout(() => router.push('/student/dashboard'), 2500)
+              setTimeout(() => router.push('/dashboard'), 2500)
           return
         }
 
         setStatus('success')
         setMessage(payload.message || 'Добро пожаловать!')
-        setTimeout(() => router.push('/student/dashboard'), 2500)
+            setTimeout(() => router.push('/dashboard'), 2500)
       } catch (error: any) {
         console.error('Join group error', error)
         setStatus('error')
