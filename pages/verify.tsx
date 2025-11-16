@@ -1,12 +1,41 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 import { BackButton } from '@/components/BackButton'
+import { supabase } from '@/lib/supabaseClient'
 
 export default function Verify() {
   const router = useRouter()
   const [status, setStatus] = useState<'success' | 'pending' | 'error'>('pending')
+  const [joinState, setJoinState] = useState<'idle' | 'joining' | 'success' | 'error'>('idle')
+  const [joinMessage, setJoinMessage] = useState<string>('')
+  const joinAttemptedRef = useRef(false)
+  const [joinToken, setJoinToken] = useState<string | null>(null)
+
+  useEffect(() => {
+    const queryToken = typeof router.query.joinToken === 'string' ? router.query.joinToken : null
+    if (queryToken) {
+      setJoinToken(queryToken)
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('pending-join-token', queryToken)
+      }
+    } else if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem('pending-join-token')
+      if (stored) {
+        setJoinToken(stored)
+      }
+    }
+  }, [router.query.joinToken])
+
+  useEffect(() => {
+    const { access_token, refresh_token } = router.query
+    if (typeof access_token === 'string' && typeof refresh_token === 'string') {
+      supabase.auth.setSession({ access_token, refresh_token }).catch((error) => {
+        console.error('Failed to set session during verification', error)
+      })
+    }
+  }, [router.query])
 
   useEffect(() => {
     const { status: queryStatus } = router.query
@@ -23,6 +52,43 @@ export default function Verify() {
       setStatus('pending')
     }
   }, [router.query, router])
+
+  useEffect(() => {
+    const attemptJoin = async () => {
+      if (status !== 'success') return
+      if (!joinToken) return
+      if (joinAttemptedRef.current) return
+      joinAttemptedRef.current = true
+
+      setJoinState('joining')
+      setJoinMessage('Подключаем к группе…')
+      try {
+        const response = await fetch('/api/student/groups/join-with-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: joinToken }),
+        })
+
+        const payload = await response.json().catch(() => ({}))
+
+        if (!response.ok) {
+          throw new Error(payload?.message || 'Не удалось присоединиться к группе')
+        }
+
+        setJoinState('success')
+        setJoinMessage(payload?.message || 'Вы успешно присоединились к группе')
+        if (typeof window !== 'undefined') {
+          window.localStorage.removeItem('pending-join-token')
+        }
+      } catch (error: any) {
+        console.error('Auto join after verification failed', error)
+        setJoinState('error')
+        setJoinMessage(error?.message || 'Не удалось присоединиться к группе. Попробуйте позже или используйте QR-код повторно.')
+      }
+    }
+
+    attemptJoin()
+  }, [status, joinToken])
 
   return (
     <>
@@ -50,6 +116,15 @@ export default function Verify() {
                 <p className="text-gray-600 mb-4">
                   Your email has been successfully verified.
                 </p>
+                {joinState === 'joining' && (
+                  <p className="text-sm text-gray-500">{joinMessage || 'Подключаем к группе…'}</p>
+                )}
+                {joinState === 'success' && (
+                  <p className="text-sm text-green-600">{joinMessage}</p>
+                )}
+                {joinState === 'error' && (
+                  <p className="text-sm text-red-600">{joinMessage}</p>
+                )}
                 <p className="text-sm text-gray-500">
                   Redirecting to your dashboard...
                 </p>

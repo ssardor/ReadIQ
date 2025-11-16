@@ -5,7 +5,7 @@ import { useRouter } from 'next/router'
 const JoinGroupPage: React.FC = () => {
   const router = useRouter()
   const { token } = router.query
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'already' | 'error'>('idle')
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'already' | 'error' | 'redirect'>('idle')
   const [message, setMessage] = useState('')
 
   useEffect(() => {
@@ -24,8 +24,12 @@ const JoinGroupPage: React.FC = () => {
         const payload = await response.json().catch(() => ({}))
 
         if (response.status === 401) {
-          setStatus('error')
-          setMessage('Войдите в систему как студент, чтобы присоединиться к группе.')
+          setStatus('redirect')
+          setMessage('Перенаправляем на регистрацию студента…')
+          if (typeof window !== 'undefined') {
+            window.localStorage.setItem('pending-join-token', token)
+          }
+          router.replace(`/signup?joinToken=${encodeURIComponent(token)}&role=student`)
           return
         }
 
@@ -68,6 +72,7 @@ const JoinGroupPage: React.FC = () => {
             {status === 'loading' && 'Проверяем QR-код и подключаем к группе…'}
             {status === 'success' && message}
             {status === 'already' && message}
+            {status === 'redirect' && message}
             {status === 'error' && message}
           </p>
           {(status === 'success' || status === 'already') && (

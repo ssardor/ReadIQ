@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
@@ -16,6 +16,7 @@ import type { SignUpData } from '@/lib/types'
 
 export default function SignUp() {
   const router = useRouter()
+  const joinToken = typeof router.query.joinToken === 'string' ? router.query.joinToken : null
   const [role, setRole] = useState<'student' | 'mentor'>('student')
   const [formData, setFormData] = useState({
     fullName: '',
@@ -27,6 +28,15 @@ export default function SignUp() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isLoading, setIsLoading] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
+
+  useEffect(() => {
+    if (joinToken) {
+      setRole('student')
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('pending-join-token', joinToken)
+      }
+    }
+  }, [joinToken])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -75,16 +85,21 @@ export default function SignUp() {
 
     try {
       // Step 1: Sign up with Supabase Auth
+      const targetRole = joinToken ? 'student' : role
+      const redirectUrl = joinToken
+        ? `${window.location.origin}/verify?status=success&joinToken=${encodeURIComponent(joinToken)}`
+        : `${window.location.origin}/verify`
+
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
           data: {
             full_name: formData.fullName,
-            role: role,
+            role: targetRole,
             university: formData.university || null
           },
-          emailRedirectTo: `${window.location.origin}/verify`
+          emailRedirectTo: redirectUrl
         }
       })
 
@@ -143,7 +158,13 @@ export default function SignUp() {
         <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
           <div className="bg-white py-8 px-4 shadow-xl sm:rounded-lg sm:px-10">
             <form className="space-y-6" onSubmit={handleSubmit}>
-              <RoleToggle role={role} onChange={setRole} />
+              {joinToken ? (
+                <div className="rounded border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                  Регистрация по QR-ссылке. Аккаунт будет создан как студент, после подтверждения email вы автоматически присоединитесь к группе.
+                </div>
+              ) : (
+                <RoleToggle role={role} onChange={setRole} />
+              )}
 
               <div>
                 <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
