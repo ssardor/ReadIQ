@@ -25,8 +25,6 @@ const detectInitialLanguage = (): Language => {
   if (typeof window === 'undefined') return 'en'
   const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY)
   if (stored === 'ru' || stored === 'en') return stored
-  const browser = window.navigator?.language || window.navigator?.languages?.[0]
-  if (browser && browser.toLowerCase().startsWith('ru')) return 'ru'
   return 'en'
 }
 

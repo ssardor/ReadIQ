@@ -2,6 +2,7 @@ import React, { useMemo } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
 import { GetServerSideProps } from 'next'
+import { motion } from 'framer-motion'
 import { supabaseServer } from '@/lib/supabaseServer'
 import { DashboardHeader } from '@/components/DashboardHeader'
 import type { MentorAnalytics, StudentAssignment, UserProfile } from '@/lib/types'
@@ -23,24 +24,16 @@ const formatScore = (value: number | null | undefined) => {
   return `${Math.round(value * 100)}%`
 }
 
-const formatDateTime = (value: string | null | undefined) => {
-  if (!value) return '—'
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return '—'
-  return parsed.toLocaleString()
+const getScheduledTimestamp = (assignment: StudentAssignment) => {
+  const scheduled = assignment.quiz_instance?.scheduled_at
+  if (!scheduled) return Number.MAX_SAFE_INTEGER
+  const timestamp = new Date(scheduled).getTime()
+  return Number.isNaN(timestamp) ? Number.MAX_SAFE_INTEGER : timestamp
 }
 
 export default function Dashboard({ profile, assignments, analytics }: DashboardProps) {
   const assignmentList = useMemo(() => (Array.isArray(assignments) ? assignments : []), [assignments])
   const completedCount = assignmentList.filter((item) => item.status === 'completed').length
-  const nextScheduled = useMemo(() => {
-    return assignmentList
-      .map((item) => item.quiz_instance?.scheduled_at)
-      .filter((date): date is string => Boolean(date))
-      .map((date) => new Date(date))
-      .filter((date) => !Number.isNaN(date.getTime()))
-      .sort((a, b) => a.getTime() - b.getTime())[0]
-  }, [assignmentList])
   const mentorSummary = profile.role === 'mentor' ? analytics?.summary ?? null : null
   const mentorCompletionRate = mentorSummary && mentorSummary.totalAssignments
     ? mentorSummary.completedAssignments / mentorSummary.totalAssignments
@@ -48,6 +41,64 @@ export default function Dashboard({ profile, assignments, analytics }: Dashboard
   const mentorActiveStudents = profile.role === 'mentor' && analytics
     ? analytics.students.filter((student) => Boolean(student.lastActivity)).length
     : 0
+  const upcomingAssignments = useMemo(() => (
+    assignmentList
+      .filter((item) => item.status !== 'completed')
+      .sort((a, b) => getScheduledTimestamp(a) - getScheduledTimestamp(b))
+  ), [assignmentList])
+
+  const completedAssignments = useMemo(() => (
+    assignmentList
+      .filter((item) => item.status === 'completed')
+      .sort((a, b) => {
+        const aTime = new Date(a.quiz_instance?.scheduled_at ?? a.created_at).getTime()
+        const bTime = new Date(b.quiz_instance?.scheduled_at ?? b.created_at).getTime()
+        return bTime - aTime
+      })
+  ), [assignmentList])
+
+  const nextAssignment = upcomingAssignments[0] ?? null
+  const progressPercent = assignmentList.length ? Math.round((completedCount / assignmentList.length) * 100) : 0
+  const upcomingPreview = upcomingAssignments.slice(0, 5)
+  const completedPreview = completedAssignments.slice(0, 5)
+  const firstName = profile.full_name ? profile.full_name.split(' ')[0] : 'there'
+  const isAllComplete = assignmentList.length > 0 && completedCount === assignmentList.length
+  const heroCtaLink = nextAssignment ? `/student/quizzes/${nextAssignment.id}` : '/student/quizzes'
+
+  const formatDueInfo = (assignment: StudentAssignment) => {
+    const scheduled = assignment.quiz_instance?.scheduled_at
+    if (!scheduled) return 'Available anytime'
+    const date = new Date(scheduled)
+    if (Number.isNaN(date.getTime())) return 'Available anytime'
+    const diffMs = date.getTime() - Date.now()
+    if (diffMs <= 0) return 'Available now'
+    const diffMinutes = Math.round(diffMs / 60000)
+    if (diffMinutes < 60) return `Starts in ${diffMinutes} min`
+    const diffHours = Math.round(diffMinutes / 60)
+    if (diffHours < 24) return `Starts in ${diffHours} hr`
+    const diffDays = Math.round(diffHours / 24)
+    if (diffDays <= 7) return `Starts in ${diffDays} day${diffDays === 1 ? '' : 's'}`
+    return date.toLocaleDateString()
+  }
+
+  const getStatusLabel = (assignment: StudentAssignment) => {
+    switch (assignment.status) {
+      case 'completed':
+        return 'Completed'
+      case 'notified':
+        return 'Notified'
+      case 'cancelled':
+        return 'Cancelled'
+      default:
+        return 'Assigned'
+    }
+  }
+
+  const formatDurationLabel = (seconds?: number | null) => {
+    if (!seconds) return 'Flexible'
+    const mins = Math.max(1, Math.round(seconds / 60))
+    return `${mins} min`
+  }
   return (
     <>
       <Head>
@@ -197,93 +248,172 @@ export default function Dashboard({ profile, assignments, analytics }: Dashboard
                 </section>
               </div>
             ) : (
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center justify-between border-b pb-4">
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-900">Ваши квизы</h2>
-                    <p className="text-gray-600">Все назначенные вам задания по группам</p>
+              <div className="space-y-6">
+                <motion.section
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4 }}
+                  className="overflow-hidden rounded-3xl bg-gradient-to-br from-primary-600 via-primary-500 to-indigo-500 text-white shadow-xl"
+                >
+                  <div className="flex flex-col gap-6 p-6 md:flex-row md:items-center md:justify-between md:p-10">
+                    <div className="space-y-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-primary-100/80">Focus mode</p>
+                      <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+                        Hey {firstName}, ready for your next quiz?
+                      </h2>
+                      <p className="max-w-lg text-sm text-primary-100/90">
+                        We deliver one question at a time. Take a breath, read slowly, and start when you feel prepared.
+                      </p>
+                      <div className="flex flex-wrap gap-3">
+                        <Link
+                          href={heroCtaLink}
+                          className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2 text-sm font-semibold text-primary-600 shadow hover:bg-primary-50"
+                        >
+                          {nextAssignment ? 'Continue quiz' : 'View assignments'}
+                          <span aria-hidden>→</span>
+                        </Link>
+                        {nextAssignment && (
+                          <span className="inline-flex items-center rounded-full border border-white/40 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-primary-100">
+                            {formatDueInfo(nextAssignment)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="grid w-full max-w-md grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div className="rounded-2xl bg-white/10 p-4 shadow-lg ring-1 ring-white/20">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-primary-100/80">Progress</p>
+                        <p className="mt-3 text-3xl font-semibold">{progressPercent}%</p>
+                        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/30">
+                          <div className="h-full rounded-full bg-white" style={{ width: `${progressPercent}%` }} />
+                        </div>
+                        <p className="mt-2 text-xs text-primary-100/80">{completedCount} of {assignmentList.length} completed</p>
+                      </div>
+                      <div className="rounded-2xl bg-white/10 p-4 shadow-lg ring-1 ring-white/20">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-primary-100/80">Next quiz</p>
+                        <p className="mt-3 text-lg font-semibold leading-tight">
+                          {nextAssignment?.quiz_instance?.quiz?.title ?? 'Waiting for assignment'}
+                        </p>
+                        <p className="mt-2 text-sm text-primary-100/80">
+                          {nextAssignment ? formatDurationLabel(nextAssignment.quiz_instance?.duration_seconds) : 'We will notify you once a quiz is assigned.'}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="mt-6">
-                  {assignmentList.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Квиз</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Группа</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Статус</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Когда</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Длительность</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100 bg-white">
-                          {assignmentList.map((assignment) => {
-                            const instance = assignment.quiz_instance
-                            const quiz = instance?.quiz
-                            const group = instance?.group
-                            const scheduledLabel = instance?.scheduled_at
-                              ? new Date(instance.scheduled_at).toLocaleString()
-                              : 'В любое время'
-                            const duration = instance?.duration_seconds
-                              ? `${Math.round(instance.duration_seconds / 60)} мин`
-                              : '—'
-                            const statusLabel =
-                              assignment.status === 'completed'
-                                ? 'Завершён'
-                                : assignment.status === 'notified'
-                                  ? 'Оповещён'
-                                  : assignment.status === 'cancelled'
-                                    ? 'Отменён'
-                                    : 'Назначен'
+                </motion.section>
 
-                            return (
-                              <tr key={assignment.id}>
-                                <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                                  <Link href={`/student/quizzes/${assignment.id}`} className="text-primary-600 hover:underline">
-                                    {quiz?.title || 'Без названия'}
-                                  </Link>
-                                </td>
-                                <td className="px-4 py-3 text-sm text-gray-600">{group?.name || '—'}</td>
-                                <td className="px-4 py-3 text-sm text-gray-600">{statusLabel}</td>
-                                <td className="px-4 py-3 text-sm text-gray-600">{scheduledLabel}</td>
-                                <td className="px-4 py-3 text-sm text-gray-600">{duration}</td>
-                              </tr>
-                            )
-                          })}
-                        </tbody>
-                      </table>
+                <motion.section
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1, duration: 0.4 }}
+                  className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm sm:p-8"
+                >
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 sm:text-xl">Upcoming</h3>
+                      <p className="text-sm text-gray-500">Quizzes appear in the order you'll take them.</p>
+                    </div>
+                    <Link href="/student/quizzes" className="text-sm font-medium text-primary-600 hover:underline">
+                      View all
+                    </Link>
+                  </div>
+                  {upcomingPreview.length ? (
+                    <div className="mt-6 space-y-4">
+                      {upcomingPreview.map((assignment, index) => {
+                        const instance = assignment.quiz_instance
+                        const quiz = instance?.quiz
+                        const group = instance?.group
+                        const linkHref = `/student/quizzes/${assignment.id}`
+                        return (
+                          <motion.div
+                            key={assignment.id}
+                            initial={{ opacity: 0, y: 16 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.15 + index * 0.05 }}
+                            whileHover={{ y: -2 }}
+                            className="flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+                          >
+                            <div className="space-y-3">
+                              <div className="flex flex-wrap items-center gap-2 text-xs font-medium uppercase tracking-wide text-primary-600">
+                                <span>{group?.name ?? 'Self-paced'}</span>
+                                {group?.term && <span className="text-gray-400">• {group.term}</span>}
+                              </div>
+                              <div>
+                                <p className="text-lg font-semibold text-gray-900">{quiz?.title ?? 'Untitled quiz'}</p>
+                                {quiz?.description && (
+                                  <p className="mt-1 text-sm text-gray-500">{quiz.description}</p>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                                <span className="inline-flex items-center rounded-full bg-primary-50 px-3 py-1 font-semibold text-primary-600">
+                                  {formatDueInfo(assignment)}
+                                </span>
+                                <span>Duration {formatDurationLabel(instance?.duration_seconds)}</span>
+                                <span>Status {getStatusLabel(assignment)}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3 self-end sm:self-center">
+                              <Link
+                                href={linkHref}
+                                className="inline-flex items-center gap-2 rounded-full bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-gray-700"
+                              >
+                                Start
+                                <span aria-hidden>→</span>
+                              </Link>
+                            </div>
+                          </motion.div>
+                        )
+                      })}
                     </div>
                   ) : (
-                    <div className="rounded border border-dashed border-gray-300 bg-gray-50 p-6 text-center text-gray-500">
-                      Вам пока не назначено ни одного квиза. Ожидайте приглашение от преподавателя.
+                    <div className="mt-6 rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center text-sm text-gray-500">
+                      {isAllComplete ? 'You are all caught up. We will let you know when something new arrives.' : 'No quizzes yet. Your mentor will assign the first one soon.'}
                     </div>
                   )}
-                </div>
-              </div>
-            )}
+                </motion.section>
 
-            {profile.role === 'student' && (
-              <div className="mt-6 grid gap-6 md:grid-cols-3">
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Следующий квиз</h3>
-                  <div className="text-3xl font-bold text-primary-600">
-                    {nextScheduled ? nextScheduled.toLocaleDateString() : '—'}
+                <motion.section
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2, duration: 0.4 }}
+                  className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm sm:p-8"
+                >
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 sm:text-xl">Recently completed</h3>
+                      <p className="text-sm text-gray-500">Review what you've already tackled.</p>
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-600">Дата ближайшего планового квиза</p>
-                </div>
-
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Выполнено</h3>
-                  <div className="text-3xl font-bold text-green-600">{completedCount}</div>
-                  <p className="text-sm text-gray-600">Количество завершённых квизов</p>
-                </div>
-
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Всего заданий</h3>
-                  <div className="text-3xl font-bold text-primary-600">{assignmentList.length}</div>
-                  <p className="text-sm text-gray-600">Активные и завершённые квизы.</p>
-                </div>
+                  {completedPreview.length ? (
+                    <div className="mt-6 space-y-3">
+                      {completedPreview.map((assignment) => {
+                        const instance = assignment.quiz_instance
+                        const quiz = instance?.quiz
+                        const group = instance?.group
+                        const completedOn = new Date(assignment.created_at).toLocaleDateString()
+                        return (
+                          <motion.div
+                            key={assignment.id}
+                            whileHover={{ y: -1 }}
+                            className="flex flex-col gap-3 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+                          >
+                            <div>
+                              <p className="text-sm font-semibold text-gray-900">{quiz?.title ?? 'Untitled quiz'}</p>
+                              <p className="text-xs text-gray-500">{group?.name ?? 'Self-paced'} • Completed {completedOn}</p>
+                            </div>
+                            <Link href={`/student/quizzes/${assignment.id}`} className="inline-flex items-center gap-2 text-sm font-medium text-primary-600 hover:underline">
+                              Review
+                              <span aria-hidden>→</span>
+                            </Link>
+                          </motion.div>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <div className="mt-6 rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center text-sm text-gray-500">
+                      {assignmentList.length ? 'Completed quizzes will appear here for quick review.' : 'Once you finish a quiz, you will be able to review it here.'}
+                    </div>
+                  )}
+                </motion.section>
               </div>
             )}
           </div>
