@@ -19,12 +19,18 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
   const [aiQuestionCount, setAiQuestionCount] = useState(5)
   const [aiFile, setAiFile] = useState<File | null>(null)
   const [aiFileError, setAiFileError] = useState('')
+  const [aiDifficulty, setAiDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium')
   const [groups, setGroups] = useState<Group[]>([])
   const [groupsLoading, setGroupsLoading] = useState(true)
   const [groupsError, setGroupsError] = useState('')
   const [selectedGroupId, setSelectedGroupId] = useState('')
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const MAX_AI_FILE_SIZE_BYTES = 12 * 1024 * 1024
+  const difficultyOptions: Array<{ value: 'easy' | 'medium' | 'hard'; label: string; helper: string }> = [
+    { value: 'easy', label: 'Лёгкий', helper: 'Для разогрева и базового воспроизведения' },
+    { value: 'medium', label: 'Средний', helper: 'Проверка понимания и применения' },
+    { value: 'hard', label: 'Сложный', helper: 'На глубокий анализ и синтез' },
+  ]
 
   useEffect(() => {
     const loadGroups = async () => {
@@ -44,7 +50,7 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
     loadGroups()
   }, [])
 
-  const addQuestion = () => setQuestions(prev => [...prev, { text: '', choices: ['A','B','C','D'], correct_indexes: [0] }])
+  const addQuestion = () => setQuestions(prev => [...prev, { text: '', choices: ['A','B','C','D'], correct_indexes: [0], difficulty: 'medium' }])
 
   const resetWizard = () => {
     setStep(1)
@@ -55,6 +61,7 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
     setCreationMode('manual')
     setAiPrompt('')
     setAiQuestionCount(5)
+  setAiDifficulty('medium')
     setAiGenerating(false)
     setAiFile(null)
     setAiFileError('')
@@ -69,14 +76,17 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
       const response = await fetch('/api/mentor/quizzes/generate-from-text', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: aiPrompt, questionCount: aiQuestionCount }),
+        body: JSON.stringify({ prompt: aiPrompt, questionCount: aiQuestionCount, difficulty: aiDifficulty }),
       })
       const payload = await response.json()
       if (!response.ok) throw new Error(payload?.message || 'Не удалось сгенерировать вопросы')
       if (!Array.isArray(payload.questions) || payload.questions.length === 0) {
         throw new Error('AI не вернул вопросы. Попробуйте уточнить описание.')
       }
-      setQuestions(payload.questions)
+      setQuestions(payload.questions.map((question: Question) => ({
+        ...question,
+        difficulty: question.difficulty ?? aiDifficulty,
+      })))
       setStep(2)
     } catch (error: any) {
       alert(error?.message || 'Ошибка AI генерации')
@@ -95,7 +105,8 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
     try {
       const payload = new FormData()
       payload.append('file', aiFile)
-      payload.append('questionCount', String(aiQuestionCount))
+  payload.append('questionCount', String(aiQuestionCount))
+  payload.append('difficulty', aiDifficulty)
 
       const response = await fetch('/api/mentor/quizzes/generate-from-file', {
         method: 'POST',
@@ -106,7 +117,10 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
       if (!Array.isArray(data.questions) || data.questions.length === 0) {
         throw new Error('AI не вернул вопросы. Попробуйте другой документ.')
       }
-      setQuestions(data.questions)
+      setQuestions(data.questions.map((question: Question) => ({
+        ...question,
+        difficulty: question.difficulty ?? aiDifficulty,
+      })))
       setStep(2)
     } catch (error: any) {
       const message = error?.message || 'Ошибка AI генерации'
@@ -151,7 +165,7 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
   const handleNextFromStep1 = async () => {
     if (creationMode === 'manual') {
       if (questions.length === 0) {
-        setQuestions([{ text: '', choices: ['A', 'B', 'C', 'D'], correct_indexes: [0] }])
+  setQuestions([{ text: '', choices: ['A', 'B', 'C', 'D'], correct_indexes: [0], difficulty: 'medium' }])
       }
       setStep(2)
       return
@@ -259,6 +273,26 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
             {creationMode === 'ai-text' && (
               <div className="space-y-3 rounded border border-primary-100 bg-primary-50/50 p-4">
                 <div>
+                  <label className="block text-sm mb-1">Уровень сложности</label>
+                  <div className="flex flex-wrap gap-2">
+                    {difficultyOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setAiDifficulty(option.value)}
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                          aiDifficulty === option.value
+                            ? 'border-primary-400 bg-primary-50 text-primary-700'
+                            : 'border-gray-200 text-gray-600 hover:border-primary-200'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">Подберите сложность, на которую AI будет ориентироваться при составлении вопросов.</p>
+                </div>
+                <div>
                   <label className="block text-sm mb-1">Описание для AI</label>
                   <textarea
                     value={aiPrompt}
@@ -284,6 +318,26 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
             )}
             {creationMode === 'ai-file' && (
               <div className="space-y-3 rounded border border-primary-100 bg-primary-50/50 p-4">
+                <div>
+                  <label className="block text-sm mb-1">Уровень сложности</label>
+                  <div className="flex flex-wrap gap-2">
+                    {difficultyOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setAiDifficulty(option.value)}
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                          aiDifficulty === option.value
+                            ? 'border-primary-400 bg-primary-50 text-primary-700'
+                            : 'border-gray-200 text-gray-600 hover:border-primary-200'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">AI будет придерживаться выбранного уровня, расставляя баланс сложности в создаваемом квизе.</p>
+                </div>
                 <div>
                   <label className="block text-sm mb-1">PDF документ</label>
                   <input
@@ -367,6 +421,28 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
                     }} className="w-full border rounded px-3 py-2" />
                   ))}
                 </div>
+                <div className="mt-3">
+                  <div className="text-xs font-semibold uppercase text-gray-500">Сложность</div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {difficultyOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setQuestions((prev) => prev.map((qq, i) => (i === idx ? { ...qq, difficulty: option.value } : qq)))}
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                          (q.difficulty ?? 'medium') === option.value
+                            ? 'border-primary-400 bg-primary-50 text-primary-700'
+                            : 'border-gray-200 text-gray-600 hover:border-primary-200'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {difficultyOptions.find((item) => item.value === (q.difficulty ?? 'medium'))?.helper ?? ''}
+                  </p>
+                </div>
               </div>
             ))}
             {questions.length === 0 && <div className="text-gray-500">No questions yet. Click “Add Question”.</div>}
@@ -396,6 +472,17 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
             <div className="text-gray-600">{description || '—'}</div>
             <div className="mt-2 text-sm text-gray-600">Группа: {groups.find((g) => g.id === selectedGroupId)?.name || '—'}</div>
             <div className="mt-4 text-sm">Questions: {questions.length}</div>
+            <div className="mt-4 space-y-3">
+              {questions.map((question, index) => (
+                <div key={index} className="rounded border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                  <div className="flex items-center justify-between text-xs uppercase text-gray-500">
+                    <span>Вопрос {index + 1}</span>
+                    <span>{difficultyOptions.find((item) => item.value === (question.difficulty ?? 'medium'))?.label ?? '—'}</span>
+                  </div>
+                  <p className="mt-1 text-gray-700">{question.text || '—'}</p>
+                </div>
+              ))}
+            </div>
           </div>
           <div className="mt-6 flex justify-between">
             <button onClick={()=>setStep(2)} className="px-3 py-2 rounded border">Back</button>

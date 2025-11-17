@@ -104,7 +104,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ message: 'Assignment already completed' })
     }
 
-    const { answers, durationSeconds } = req.body || {}
+    const { answers, durationSeconds, autoFailed } = req.body || {}
     if (!Array.isArray(answers) || answers.length === 0) {
       return res.status(400).json({ message: 'Answers are required' })
     }
@@ -128,8 +128,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       answerMap.set(entry.questionId, normalized)
     }
 
-    let correctCount = 0
-    const detailedResults: { questionId: string; correctIndexes: number[]; selectedIndexes: number[]; isCorrect: boolean }[] = []
+  let correctCount = 0
+  const detailedResults: { questionId: string; correctIndexes: number[]; selectedIndexes: number[]; isCorrect: boolean }[] = []
 
     for (const question of questions ?? []) {
       const expected = (question.correct_indexes ?? []).slice().sort((a: number, b: number) => a - b)
@@ -148,8 +148,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!totalQuestions) {
       return res.status(400).json({ message: 'Quiz has no questions configured' })
     }
+    let score = correctCount / totalQuestions
 
-    const score = correctCount / totalQuestions
+    if (autoFailed) {
+      score = 0
+      correctCount = 0
+      for (const result of detailedResults) {
+        result.isCorrect = false
+      }
+    }
 
     const { data: attemptRow, error: attemptError } = await supabaseServer
       .from('attempts')
@@ -183,6 +190,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       assignment_id: assignmentRow.id,
       quiz_instance_id: quizInstance.id,
       score,
+      auto_failed: Boolean(autoFailed),
     })
 
     return res.status(200).json({
@@ -190,6 +198,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       correctCount,
       totalQuestions,
       attempt: attemptRow,
+      autoFailed: Boolean(autoFailed),
       results: detailedResults,
     })
   }

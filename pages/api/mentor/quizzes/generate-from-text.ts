@@ -7,6 +7,8 @@ import {
   generateQuizQuestionsFromText,
 } from '@/lib/ai/quizGenerator'
 
+const ALLOWED_DIFFICULTIES = ['easy', 'medium', 'hard'] as const
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const mentor = await requireMentorApi(req, res)
   if (!mentor) return
@@ -15,7 +17,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ message: 'Method not allowed' })
   }
 
-  const { prompt, questionCount } = req.body || {}
+  const { prompt, questionCount, difficulty } = req.body || {}
+  const normalizedDifficulty = typeof difficulty === 'string' ? difficulty.toLowerCase() : ''
+  const difficultyValue = (ALLOWED_DIFFICULTIES as readonly string[]).includes(normalizedDifficulty)
+    ? (normalizedDifficulty as 'easy' | 'medium' | 'hard')
+    : 'medium'
 
   if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
     return res.status(400).json({ message: 'Prompt is required' })
@@ -35,7 +41,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const questions = await generateQuizQuestionsFromText({ prompt: prompt.trim(), questionCount: count, apiKey })
+  const questions = await generateQuizQuestionsFromText({ prompt: prompt.trim(), questionCount: count, apiKey, difficulty: difficultyValue })
     return res.status(200).json({ questions })
   } catch (error: any) {
     console.error('AI generation error:', error)

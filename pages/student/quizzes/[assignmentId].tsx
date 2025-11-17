@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Head from 'next/head'
 import type { GetServerSideProps } from 'next'
 import { requireStudent } from '@/utils/roleGuard'
@@ -57,6 +57,7 @@ interface SubmissionResult {
   totalQuestions: number
   results: Array<{ questionId: string; correctIndexes: number[]; selectedIndexes: number[]; isCorrect: boolean }>
   attempt: AttemptSummary | null
+  autoFailed?: boolean
 }
 
 interface PageProps {
@@ -70,6 +71,9 @@ const StudentQuizPage: React.FC<PageProps> = ({ assignmentId }) => {
   const [payload, setPayload] = useState<AssignmentPayload | null>(null)
   const [submission, setSubmission] = useState<SubmissionResult | null>(null)
   const [selected, setSelected] = useState<Record<string, number[]>>({})
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null)
+  const autoFailTriggered = useRef(false)
   const startedAtRef = useRef<number>(Date.now())
 
   const assignment = payload?.assignment
@@ -81,6 +85,17 @@ const StudentQuizPage: React.FC<PageProps> = ({ assignmentId }) => {
   const correctAnswers = submission?.correctCount ?? 0
   const totalQuestionsCount = submission?.totalQuestions ?? questions.length
   const displayedScore = submission?.score ?? attemptSummary?.score ?? 0
+  const currentQuestion = questions[currentIndex]
+  const answeredCurrent = currentQuestion ? ((selected[currentQuestion.id]?.length ?? 0) > 0) : false
+  const quizDuration = useMemo(() => {
+    if (assignment?.quiz_instance.duration_seconds && assignment.quiz_instance.duration_seconds > 0) {
+      return assignment.quiz_instance.duration_seconds
+    }
+    if (questions.length) {
+      return Math.max(1, questions.length) * 60
+    }
+    return null
+  }, [assignment?.quiz_instance.duration_seconds, questions.length])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -128,11 +143,35 @@ const StudentQuizPage: React.FC<PageProps> = ({ assignmentId }) => {
       } finally {
         setLoading(false)
         startedAtRef.current = Date.now()
+        setCurrentIndex(0)
+        autoFailTriggered.current = false
       }
     }
     load()
     return () => controller.abort()
   }, [assignmentId, push])
+
+  useEffect(() => {
+    if (attempt || submission) {
+      setRemainingSeconds(null)
+      return
+    }
+    if (!questions.length) return
+    setRemainingSeconds(quizDuration)
+  }, [attempt, submission, questions.length, quizDuration])
+
+  useEffect(() => {
+    if (remainingSeconds == null) return
+    if (attempt || submission || submitting) return
+    if (remainingSeconds <= 0) {
+      setRemainingSeconds(0)
+      return
+    }
+    const id = window.setInterval(() => {
+      setRemainingSeconds((prev) => (prev == null || prev <= 0 ? 0 : prev - 1))
+    }, 1000)
+    return () => window.clearInterval(id)
+  }, [remainingSeconds, attempt, submission, submitting])
 
   const handleToggle = (questionId: string, index: number) => {
     if (attempt || submission) return
@@ -151,7 +190,30 @@ const StudentQuizPage: React.FC<PageProps> = ({ assignmentId }) => {
     return questions.every((question) => (selected[question.id]?.length ?? 0) > 0)
   }, [questions, selected])
 
-  const handleSubmit = async () => {
+  const nextDisabled = !answeredCurrent
+
+  const formatTime = (seconds: number | null) => {
+    if (seconds == null) return '—'
+    const safe = Math.max(0, seconds)
+    const minutes = Math.floor(safe / 60)
+    const secs = safe % 60
+    return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+  }
+
+  const handleNext = () => {
+    if (!currentQuestion) return
+    if (nextDisabled) {
+      push('Сначала выберите ответ', 'info')
+      return
+    }
+    setCurrentIndex((index) => Math.min(index + 1, questions.length - 1))
+  }
+
+  const handlePrevious = () => {
+    setCurrentIndex((index) => Math.max(index - 1, 0))
+  }
+
+  const submitAnswers = useCallback(async (options?: { autoFailed?: boolean }) => {
     if (!assignment) return
     if (attempt || submission) return
     if (!questions.length) {
@@ -170,19 +232,27 @@ const StudentQuizPage: React.FC<PageProps> = ({ assignmentId }) => {
       const response = await fetch(`/api/student/assignments/${assignmentId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ answers, durationSeconds }),
+        body: JSON.stringify({ answers, durationSeconds, autoFailed: Boolean(options?.autoFailed) }),
       })
 
       const json = await response.json()
       if (!response.ok) throw new Error(json?.message || 'Не удалось отправить ответы')
 
-      push('Ответы отправлены', 'success')
+      if (options?.autoFailed) {
+        push('Время истекло — попытка завершена с результатом 0%.', 'error')
+      } else {
+        push('Ответы отправлены', 'success')
+      }
+
+      setCurrentIndex(0)
+
       setSubmission({
         score: json.score,
         correctCount: json.correctCount,
         totalQuestions: json.totalQuestions,
         results: json.results,
         attempt: json.attempt ?? null,
+        autoFailed: Boolean(json.autoFailed),
       })
       setPayload((prev) => (
         prev
@@ -205,6 +275,28 @@ const StudentQuizPage: React.FC<PageProps> = ({ assignmentId }) => {
     } finally {
       setSubmitting(false)
     }
+  }, [assignment, attempt, submission, questions, selected, push, assignmentId])
+
+  const handleAutoFail = useCallback(() => {
+    submitAnswers({ autoFailed: true })
+  }, [submitAnswers])
+
+  useEffect(() => {
+    if (attempt || submission) return
+    if (remainingSeconds !== 0) return
+    if (!questions.length) return
+    if (autoFailTriggered.current) return
+    if (submitting) return
+    autoFailTriggered.current = true
+    handleAutoFail()
+  }, [attempt, submission, remainingSeconds, questions.length, submitting, handleAutoFail])
+
+  const handleSubmit = async () => {
+    if (!allAnswered) {
+      push('Ответьте на все вопросы, прежде чем отправлять квиз', 'info')
+      return
+    }
+    submitAnswers()
   }
 
   const renderStatusBadge = () => {
@@ -237,6 +329,20 @@ const StudentQuizPage: React.FC<PageProps> = ({ assignmentId }) => {
           </div>
         </div>
 
+        {!showResults && !attempt && (
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
+            <div className="font-medium">
+              Вопрос {currentIndex + 1} из {questions.length || 1}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs uppercase tracking-wide text-gray-500">Оставшееся время</span>
+              <span className={`rounded px-3 py-1 text-sm font-semibold ${remainingSeconds !== null && remainingSeconds <= 30 ? 'bg-red-100 text-red-700' : 'bg-white text-gray-900'}`}>
+                {formatTime(remainingSeconds ?? quizDuration ?? 0)}
+              </span>
+            </div>
+          </div>
+        )}
+
         {assignment?.quiz_instance.quiz?.description && (
           <p className="mt-3 text-sm text-gray-600">{assignment.quiz_instance.quiz.description}</p>
         )}
@@ -249,10 +355,45 @@ const StudentQuizPage: React.FC<PageProps> = ({ assignmentId }) => {
               <div className="rounded border border-dashed border-gray-300 bg-gray-50 p-6 text-center text-gray-500">В этом квизе пока нет вопросов.</div>
             )}
 
-            {questions.map((question, questionIndex) => {
-              const correctIndexes = question.correct_indexes ?? []
+            {!showResults && currentQuestion && (
+              <div key={currentQuestion.id} className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-sm font-semibold text-gray-500">Вопрос {currentIndex + 1}</span>
+                </div>
+                <p className="text-base font-medium text-gray-900">{currentQuestion.text}</p>
+                <ul className="mt-4 space-y-3">
+                  {currentQuestion.choices.map((choice, idx) => {
+                    const selectedIndexes = selected[currentQuestion.id] ?? []
+                    const isSelected = selectedIndexes.includes(idx)
+
+                    return (
+                      <li
+                        key={idx}
+                        className={`flex items-center gap-3 rounded border px-3 py-2 text-sm ${
+                          isSelected ? 'border-primary-200 bg-primary-50 text-primary-800' : 'border-gray-200 text-gray-700'
+                        }`}
+                      >
+                        <label className="flex w-full cursor-pointer items-center gap-3">
+                          <input
+                            type="checkbox"
+                            disabled={Boolean(submission || attempt)}
+                            checked={isSelected}
+                            onChange={() => handleToggle(currentQuestion.id, idx)}
+                            className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                          />
+                          <span className="flex-1">{choice}</span>
+                        </label>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+            )}
+
+            {showResults && questions.map((question, questionIndex) => {
               const selectedIndexes = selected[question.id] ?? []
               const breakdown = submission?.results.find((item) => item.questionId === question.id)
+              const correctIndexes = question.correct_indexes ?? []
 
               return (
                 <div key={question.id} className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
@@ -269,32 +410,27 @@ const StudentQuizPage: React.FC<PageProps> = ({ assignmentId }) => {
                     {question.choices.map((choice, idx) => {
                       const isSelected = selectedIndexes.includes(idx)
                       const isCorrect = breakdown ? breakdown.correctIndexes.includes(idx) : correctIndexes.includes(idx)
-                      const shouldReveal = Boolean(submission || attempt)
 
                       return (
                         <li
                           key={idx}
                           className={`flex items-center gap-3 rounded border px-3 py-2 text-sm ${
-                            shouldReveal && isCorrect
+                            isCorrect
                               ? 'border-green-200 bg-green-50 text-green-800'
                               : isSelected
                                 ? 'border-primary-200 bg-primary-50 text-primary-800'
                                 : 'border-gray-200 text-gray-700'
                           }`}
                         >
-                          <label className="flex w-full cursor-pointer items-center gap-3">
-                            <input
-                              type="checkbox"
-                              disabled={Boolean(submission || attempt)}
-                              checked={isSelected}
-                              onChange={() => handleToggle(question.id, idx)}
-                              className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                            />
+                          <div className="flex items-center gap-3">
+                            <span className={`inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-semibold ${isSelected ? 'bg-primary-500 text-white' : 'bg-gray-200 text-gray-600'}`}>
+                              {String.fromCharCode(65 + idx)}
+                            </span>
                             <span className="flex-1">{choice}</span>
-                          </label>
+                          </div>
                         </li>
-                      )
-                    })}
+                      )}
+                    )}
                   </ul>
                 </div>
               )
@@ -302,16 +438,35 @@ const StudentQuizPage: React.FC<PageProps> = ({ assignmentId }) => {
           </div>
         )}
 
-        {!loading && !attempt && !submission && questions.length > 0 && (
-          <div className="mt-8 flex items-center justify-between">
-            <p className="text-xs text-gray-500">Ответы можно будет изменить до отправки. Выберите все подходящие варианты.</p>
-            <button
-              onClick={handleSubmit}
-              disabled={submitting || !allAnswered}
-              className="rounded bg-primary-600 px-5 py-2 text-sm font-medium text-white shadow hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {submitting ? 'Отправка…' : 'Отправить ответы'}
-            </button>
+        {!loading && !attempt && !submission && questions.length > 0 && currentQuestion && !showResults && (
+          <div className="mt-8 flex flex-col gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-xs text-gray-500">Ответы можно менять до отправки. Отметьте все подходящие варианты и переходите к следующему вопросу.</div>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                onClick={handlePrevious}
+                disabled={currentIndex === 0 || submitting}
+                className="rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Назад
+              </button>
+              {currentIndex < questions.length - 1 ? (
+                <button
+                  onClick={handleNext}
+                  disabled={submitting || nextDisabled}
+                  className="rounded bg-primary-600 px-5 py-2 text-sm font-medium text-white shadow hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Далее
+                </button>
+              ) : (
+                <button
+                  onClick={handleSubmit}
+                  disabled={submitting || !allAnswered}
+                  className="rounded bg-primary-600 px-5 py-2 text-sm font-medium text-white shadow hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {submitting ? 'Отправка…' : 'Отправить квиз'}
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -322,6 +477,9 @@ const StudentQuizPage: React.FC<PageProps> = ({ assignmentId }) => {
               <p>Ответы отправлены: {submittedAt ? submittedAt.toLocaleString() : '—'}</p>
               <p>Правильных ответов: {correctAnswers} из {totalQuestionsCount}</p>
               <p>Итоговый балл: {(displayedScore * 100).toFixed(0)}%</p>
+              {submission?.autoFailed && (
+                <p className="mt-2 text-sm font-semibold text-red-600">Попытка завершена автоматически из-за истечения времени.</p>
+              )}
             </div>
           </div>
         )}

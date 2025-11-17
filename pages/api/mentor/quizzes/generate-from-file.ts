@@ -18,6 +18,7 @@ export const config = {
 
 const MAX_PDF_TEXT_LENGTH = 15000
 const MAX_UPLOAD_SIZE = 12 * 1024 * 1024 // 12MB
+const ALLOWED_DIFFICULTIES = ['easy', 'medium', 'hard'] as const
 
 async function parseMultipart(req: NextApiRequest) {
   const form = formidable({
@@ -40,6 +41,15 @@ function coerceQuestionCount(raw: string | string[] | undefined) {
   return Number.isInteger(parsed)
     ? Math.min(Math.max(parsed, MIN_QUESTION_COUNT), MAX_QUESTION_COUNT)
     : DEFAULT_QUESTION_COUNT
+}
+
+function coerceDifficulty(raw: string | string[] | undefined) {
+  const value = Array.isArray(raw) ? raw[0] : raw
+  if (!value) return 'medium'
+  const normalized = String(value).toLowerCase()
+  return (ALLOWED_DIFFICULTIES as readonly string[]).includes(normalized)
+    ? (normalized as 'easy' | 'medium' | 'hard')
+    : 'medium'
 }
 
 function pickFile(fileField: Files['file'] | undefined): FormidableFile | null {
@@ -83,7 +93,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ message: 'Поддерживаются только PDF файлы' })
     }
 
-    const questionCount = coerceQuestionCount(fields.questionCount)
+  const questionCount = coerceQuestionCount(fields.questionCount)
+  const difficulty = coerceDifficulty(fields.difficulty)
     const buffer = await fs.readFile(uploaded.filepath)
     await fs.unlink(uploaded.filepath).catch(() => {})
 
@@ -102,7 +113,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const sourceText = normalizeSourceText(extractedText)
     const prompt = `Use the following text extracted from a PDF document to craft assessment questions:\n\n${sourceText}`
 
-    const questions = await generateQuizQuestionsFromText({ prompt, questionCount, apiKey })
+  const questions = await generateQuizQuestionsFromText({ prompt, questionCount, apiKey, difficulty })
     return res.status(200).json({ questions })
   } catch (error: any) {
     console.error('AI file generation error:', error)

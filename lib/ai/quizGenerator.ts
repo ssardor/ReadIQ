@@ -30,6 +30,7 @@ interface GenerateOptions {
   prompt: string
   questionCount: number
   apiKey: string
+  difficulty?: 'easy' | 'medium' | 'hard'
 }
 
 export async function requestQuizContentFromDeepseek({ prompt, questionCount, apiKey }: GenerateOptions) {
@@ -39,7 +40,7 @@ export async function requestQuizContentFromDeepseek({ prompt, questionCount, ap
       { role: 'system', content: systemPrompt },
       {
         role: 'user',
-        content: `Topic / summary: ${prompt}\n\nNumber of questions: ${questionCount}`,
+        content: `${prompt}\n\nTotal questions requested: ${questionCount}`,
       },
     ],
     temperature: 0.8,
@@ -124,6 +125,11 @@ export function parseQuestionsFromContent(raw: string): Question[] {
 }
 
 export async function generateQuizQuestionsFromText(options: GenerateOptions) {
-  const raw = await requestQuizContentFromDeepseek(options)
-  return parseQuestionsFromContent(raw)
+  const difficultyTag = options.difficulty ?? 'medium'
+  const topicPrompt = `Topic / summary: ${options.prompt}\n\nNumber of questions: ${options.questionCount}\n\nTarget difficulty level: ${difficultyTag}. Craft questions that match this level of challenge.`
+  const raw = await requestQuizContentFromDeepseek({ ...options, prompt: topicPrompt })
+  return parseQuestionsFromContent(raw).map((question) => ({
+    ...question,
+    difficulty: difficultyTag,
+  }))
 }
