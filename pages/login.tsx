@@ -64,17 +64,6 @@ export default function Login() {
         throw new Error(t('Login failed'))
       }
 
-      // Check if email is verified
-      if (!data.user.email_confirmed_at) {
-        setToast({
-          message: t('Please verify your email before logging in. Check your inbox.'),
-          type: 'error'
-        })
-        await supabase.auth.signOut()
-        setIsLoading(false)
-        return
-      }
-
       // Устанавливаем серверные куки через API, чтобы SSR видел сессию
       const session = data.session
       if (!session) {

@@ -25,7 +25,8 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
   const [groupsError, setGroupsError] = useState('')
   const [selectedGroupId, setSelectedGroupId] = useState('')
   const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const MAX_AI_FILE_SIZE_BYTES = 12 * 1024 * 1024
+  const MAX_AI_FILE_SIZE_MB = 30
+  const MAX_AI_FILE_SIZE_BYTES = MAX_AI_FILE_SIZE_MB * 1024 * 1024
   const difficultyOptions: Array<{ value: 'easy' | 'medium' | 'hard'; label: string; helper: string }> = [
     { value: 'easy', label: 'Лёгкий', helper: 'Для разогрева и базового воспроизведения' },
     { value: 'medium', label: 'Средний', helper: 'Проверка понимания и применения' },
@@ -147,7 +148,7 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
     }
     if (file.size > MAX_AI_FILE_SIZE_BYTES) {
       setAiFile(null)
-      setAiFileError('Файл слишком большой (максимум 12 МБ)')
+      setAiFileError(`Файл слишком большой (максимум ${MAX_AI_FILE_SIZE_MB} МБ)`)
       event.target.value = ''
       return
     }

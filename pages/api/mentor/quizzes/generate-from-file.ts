@@ -16,8 +16,8 @@ export const config = {
   },
 }
 
-const MAX_PDF_TEXT_LENGTH = 15000
-const MAX_UPLOAD_SIZE = 12 * 1024 * 1024 // 12MB
+const MAX_PDF_TEXT_LENGTH = 45000
+const MAX_UPLOAD_SIZE = 30 * 1024 * 1024 // 30MB
 const ALLOWED_DIFFICULTIES = ['easy', 'medium', 'hard'] as const
 
 async function parseMultipart(req: NextApiRequest) {

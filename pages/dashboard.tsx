@@ -482,17 +482,6 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       }
     }
 
-    // Check email verification
-    if (!user.email_confirmed_at) {
-      console.log('Dashboard - Email not verified')
-      return {
-        redirect: {
-          destination: '/verify?status=pending',
-          permanent: false
-        }
-      }
-    }
-
     // Get user profile
     const { data: profile, error: profileError } = await supabaseServer
       .from('users_profiles')
