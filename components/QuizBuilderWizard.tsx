@@ -49,7 +49,7 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
       setGroupsLoading(true)
       setGroupsError('')
       try {
-        const response = await fetch('/api/mentor/groups')
+        const response = await fetch('/api/mentor/groups', { credentials: 'include' })
         const payload = await response.json()
         if (!response.ok) throw new Error(payload?.message || 'Не удалось загрузить группы')
         setGroups(payload.groups ?? [])
@@ -88,6 +88,7 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
       const response = await fetch('/api/mentor/quizzes/generate-from-text', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ prompt: aiPrompt, questionCount: aiQuestionCount, difficulty: aiDifficulty }),
       })
       let payload: any = null
@@ -130,6 +131,7 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
 
       const response = await fetch('/api/mentor/quizzes/generate-from-file', {
         method: 'POST',
+        credentials: 'include',
         body: payload,
       })
       let data: any = null
@@ -226,6 +228,7 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
       const quizResponse = await fetch('/api/mentor/quizzes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ title, description, questions }),
       })
       const quizPayload = await quizResponse.json()
@@ -235,6 +238,7 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
       const instanceResponse = await fetch(`/api/mentor/quizzes/${quizId}/instances`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ group_id: selectedGroupId, status: 'scheduled', duration_seconds: 300 }),
       })
       const instancePayload = await instanceResponse.json().catch(() => ({}))

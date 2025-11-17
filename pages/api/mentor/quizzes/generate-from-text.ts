@@ -10,10 +10,25 @@ import {
 const ALLOWED_DIFFICULTIES = ['easy', 'medium', 'hard'] as const
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const origin = req.headers.origin || process.env.NEXT_PUBLIC_SITE_URL || ''
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin)
+    res.setHeader('Vary', 'Origin')
+    res.setHeader('Access-Control-Allow-Credentials', 'true')
+  }
+
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Allow', 'POST, OPTIONS')
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    return res.status(204).end()
+  }
+
   const mentor = await requireMentorApi(req, res)
   if (!mentor) return
 
   if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST, OPTIONS')
     return res.status(405).json({ message: 'Method not allowed' })
   }
 

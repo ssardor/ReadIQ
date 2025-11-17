@@ -67,6 +67,12 @@ function normalizeSourceText(input: string) {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const origin = req.headers.origin || process.env.NEXT_PUBLIC_SITE_URL || ''
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin)
+    res.setHeader('Vary', 'Origin')
+    res.setHeader('Access-Control-Allow-Credentials', 'true')
+  }
   if (req.method === 'OPTIONS') {
     res.setHeader('Allow', 'POST, OPTIONS')
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
