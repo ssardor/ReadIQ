@@ -7,6 +7,17 @@ type Props = {
   onCreated?: (quizId: string) => void
 }
 
+const parseJsonSafe = async <T = any>(response: Response): Promise<T | null> => {
+  try {
+    const text = await response.text()
+    if (!text) return null
+    return JSON.parse(text) as T
+  } catch (error) {
+    console.error('Failed to parse JSON response', error)
+    throw new Error('Сервер вернул некорректный ответ. Повторите попытку позже.')
+  }
+}
+
 export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
   const [step, setStep] = useState(1)
   const [title, setTitle] = useState('')
@@ -79,12 +90,20 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: aiPrompt, questionCount: aiQuestionCount, difficulty: aiDifficulty }),
       })
-      const payload = await response.json()
-      if (!response.ok) throw new Error(payload?.message || 'Не удалось сгенерировать вопросы')
-      if (!Array.isArray(payload.questions) || payload.questions.length === 0) {
+      let payload: any = null
+      try {
+        payload = await parseJsonSafe(response)
+      } catch (parseError) {
+        payload = null
+      }
+      if (!response.ok) {
+        const message = payload?.message || 'Не удалось сгенерировать вопросы'
+        throw new Error(message)
+      }
+      if (!payload || !Array.isArray((payload as any).questions) || (payload as any).questions.length === 0) {
         throw new Error('AI не вернул вопросы. Попробуйте уточнить описание.')
       }
-      setQuestions(payload.questions.map((question: Question) => ({
+      setQuestions((payload as any).questions.map((question: Question) => ({
         ...question,
         difficulty: question.difficulty ?? aiDifficulty,
       })))
@@ -113,9 +132,17 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
         method: 'POST',
         body: payload,
       })
-      const data = await response.json()
-      if (!response.ok) throw new Error(data?.message || 'Не удалось сгенерировать вопросы')
-      if (!Array.isArray(data.questions) || data.questions.length === 0) {
+      let data: any = null
+      try {
+        data = await parseJsonSafe(response)
+      } catch (parseError) {
+        data = null
+      }
+      if (!response.ok) {
+        const message = data?.message || (response.status === 413 ? 'Файл слишком большой для обработки. Сократите размер или разделите документ.' : 'Не удалось сгенерировать вопросы')
+        throw new Error(message)
+      }
+      if (!data || !Array.isArray(data.questions) || data.questions.length === 0) {
         throw new Error('AI не вернул вопросы. Попробуйте другой документ.')
       }
       setQuestions(data.questions.map((question: Question) => ({

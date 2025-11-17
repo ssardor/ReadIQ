@@ -67,12 +67,20 @@ function normalizeSourceText(input: string) {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const mentor = await requireMentorApi(req, res)
-  if (!mentor) return
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Allow', 'POST, OPTIONS')
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    return res.status(204).end()
+  }
 
   if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST, OPTIONS')
     return res.status(405).json({ message: 'Method not allowed' })
   }
+
+  const mentor = await requireMentorApi(req, res)
+  if (!mentor) return
 
   const apiKey = process.env.DEEPSEEK_API_KEY
   if (!apiKey) {
