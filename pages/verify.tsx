@@ -66,6 +66,7 @@ export default function Verify() {
         const response = await fetch('/api/student/groups/join-with-token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({ token: joinToken }),
         })
 

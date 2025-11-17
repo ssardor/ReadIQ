@@ -89,6 +89,7 @@ export const AddStudentsModal: React.FC<AddStudentsModalProps> = ({ groupId, isO
       const response = await fetch(`/api/mentor/groups/${groupId}/add-students`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ emails }),
       })
 

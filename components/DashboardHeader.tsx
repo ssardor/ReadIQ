@@ -20,7 +20,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({ fullName, role
       await supabase.auth.signOut()
       // очищаем серверные куки
       try {
-        await fetch('/api/auth/clear-session', { method: 'POST' })
+  await fetch('/api/auth/clear-session', { method: 'POST', credentials: 'include' })
       } catch (e) {
         console.error('Failed to clear server cookies', e)
       }

@@ -10,7 +10,7 @@ export const GroupListTable: React.FC = () => {
 
   const load = async () => {
     setLoading(true)
-    const resp = await fetch('/api/mentor/groups')
+  const resp = await fetch('/api/mentor/groups', { credentials: 'include' })
     const json = await resp.json()
     if (resp.ok) setGroups(json.groups)
     else setError(json.message || 'Failed to load groups')

@@ -10,7 +10,7 @@ export const QuizListTable: React.FC = () => {
 
   const load = async () => {
     setLoading(true)
-    const resp = await fetch('/api/mentor/quizzes')
+  const resp = await fetch('/api/mentor/quizzes', { credentials: 'include' })
     const json = await resp.json()
     if (resp.ok) setQuizzes(json.quizzes)
     else setError(json.message || 'Failed to load quizzes')

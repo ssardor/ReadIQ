@@ -102,7 +102,10 @@ const StudentQuizPage: React.FC<PageProps> = ({ assignmentId }) => {
     const load = async () => {
       setLoading(true)
       try {
-        const response = await fetch(`/api/student/assignments/${assignmentId}`, { signal: controller.signal })
+        const response = await fetch(`/api/student/assignments/${assignmentId}`, {
+          signal: controller.signal,
+          credentials: 'include',
+        })
         if (!response.ok) {
           const payload = await response.json().catch(() => ({}))
           throw new Error(payload?.message || 'Не удалось загрузить квиз')
@@ -232,6 +235,7 @@ const StudentQuizPage: React.FC<PageProps> = ({ assignmentId }) => {
       const response = await fetch(`/api/student/assignments/${assignmentId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ answers, durationSeconds, autoFailed: Boolean(options?.autoFailed) }),
       })
 

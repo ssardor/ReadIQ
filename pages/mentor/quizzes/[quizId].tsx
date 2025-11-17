@@ -68,7 +68,7 @@ const MentorQuizDetail: React.FC<QuizDetailProps> = ({ initialQuiz, initialQuest
   const refreshData = useCallback(async () => {
     setRefreshing(true)
     try {
-      const response = await fetch(`/api/mentor/quizzes/${quiz.id}`)
+  const response = await fetch(`/api/mentor/quizzes/${quiz.id}`, { credentials: 'include' })
       const payload = await response.json()
       if (!response.ok) throw new Error(payload?.message || 'Не удалось обновить квиз')
       setQuiz(payload.quiz)
@@ -96,6 +96,7 @@ const MentorQuizDetail: React.FC<QuizDetailProps> = ({ initialQuiz, initialQuest
       const response = await fetch(`/api/mentor/quizzes/${quiz.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ title: form.title.trim(), description: form.description }),
       })
       const payload = await response.json()
@@ -114,7 +115,10 @@ const MentorQuizDetail: React.FC<QuizDetailProps> = ({ initialQuiz, initialQuest
     if (!window.confirm('Удалить (архивировать) этот квиз? Действие нельзя отменить.')) return
     setDeleting(true)
     try {
-      const response = await fetch(`/api/mentor/quizzes/${quiz.id}`, { method: 'DELETE' })
+      const response = await fetch(`/api/mentor/quizzes/${quiz.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
       if (!response.ok && response.status !== 204) {
         const payload = await response.json().catch(() => ({}))
         throw new Error(payload?.message || 'Не удалось удалить квиз')

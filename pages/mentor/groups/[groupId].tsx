@@ -53,7 +53,7 @@ const MentorGroupDetail: React.FC<GroupDetailProps> = ({ initialGroup, initialRo
   const refreshData = useCallback(async () => {
     setRefreshing(true)
     try {
-      const response = await fetch(`/api/mentor/groups/${group.id}`)
+  const response = await fetch(`/api/mentor/groups/${group.id}`, { credentials: 'include' })
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}))
         throw new Error(payload?.message || 'Не удалось обновить информацию группы')

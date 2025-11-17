@@ -57,6 +57,7 @@ export const GroupQrModal: React.FC<GroupQrModalProps> = ({ groupId, isOpen, onC
         const response = await fetch(`/api/mentor/groups/${groupId}/qr-session`, {
           method: mode,
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
         })
 
         const payload: ApiResponse = await response.json()
@@ -156,6 +157,7 @@ export const GroupQrModal: React.FC<GroupQrModalProps> = ({ groupId, isOpen, onC
       const response = await fetch(`/api/mentor/groups/${groupId}/qr-session`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ sessionId: session.id }),
       })
 

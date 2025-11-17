@@ -73,6 +73,7 @@ export default function Login() {
       const cookieResp = await fetch('/api/auth/set-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           access_token: session.access_token,
           refresh_token: session.refresh_token,

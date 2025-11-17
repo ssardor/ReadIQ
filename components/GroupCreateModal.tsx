@@ -16,7 +16,9 @@ export const GroupCreateModal: React.FC<Props> = ({ open, onClose, onCreated }) 
     if (!name.trim()) return
     setIsLoading(true)
     const resp = await fetch('/api/mentor/groups', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ name, term })
     })
     const json = await resp.json()
