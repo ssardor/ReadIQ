@@ -415,12 +415,30 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
                 <input value={q.text} onChange={e=>{
                   const v = e.target.value; setQuestions(prev=> prev.map((qq,i)=> i===idx? { ...qq, text: v }: qq))
                 }} placeholder={`Question #${idx+1}`} className="w-full border rounded px-3 py-2 mb-2" />
-                <div className="grid md:grid-cols-2 gap-2">
-                  {q.choices.map((c, ci)=> (
-                    <input key={ci} value={c} onChange={e=>{
-                      const v = e.target.value; setQuestions(prev=> prev.map((qq,i)=> i===idx? { ...qq, choices: qq.choices.map((cc,cci)=> cci===ci? v: cc)}: qq))
-                    }} className="w-full border rounded px-3 py-2" />
-                  ))}
+                <div className="grid gap-2">
+                  {q.choices.map((c, ci)=> {
+                    const isCorrect = (q.correct_indexes ?? [0]).includes(ci)
+                    return (
+                      <div key={ci} className={`flex items-center gap-3 rounded border px-3 py-2 ${isCorrect ? 'border-green-300 bg-green-50' : 'border-gray-200 bg-white'}`}>
+                        <button
+                          type="button"
+                          onClick={() => setQuestions(prev => prev.map((qq, i) => i === idx ? { ...qq, correct_indexes: [ci] } : qq))}
+                          className={`inline-flex h-6 w-6 items-center justify-center rounded-full border text-xs font-semibold ${isCorrect ? 'border-green-500 bg-green-500 text-white' : 'border-gray-300 text-gray-500 hover:border-green-400 hover:text-green-600'}`}
+                          aria-label={`Mark answer ${ci + 1} as correct`}
+                        >
+                          {String.fromCharCode(65 + ci)}
+                        </button>
+                        <input
+                          value={c}
+                          onChange={e=>{
+                            const v = e.target.value; setQuestions(prev=> prev.map((qq,i)=> i===idx? { ...qq, choices: qq.choices.map((cc,cci)=> cci===ci? v: cc)}: qq))
+                          }}
+                          className="w-full border border-transparent bg-transparent focus:border-primary-300 focus:bg-white focus:outline-none"
+                        />
+                        {isCorrect && <span className="text-xs font-semibold text-green-600">Правильный ответ</span>}
+                      </div>
+                    )
+                  })}
                 </div>
                 <div className="mt-3">
                   <div className="text-xs font-semibold uppercase text-gray-500">Сложность</div>
@@ -481,6 +499,12 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
                     <span>{difficultyOptions.find((item) => item.value === (question.difficulty ?? 'medium'))?.label ?? '—'}</span>
                   </div>
                   <p className="mt-1 text-gray-700">{question.text || '—'}</p>
+                  <p className="mt-2 text-xs text-gray-500">
+                    Правильный ответ: {(() => {
+                      const correctIdx = question.correct_indexes?.[0] ?? 0
+                      return question.choices?.[correctIdx] ?? '—'
+                    })()}
+                  </p>
                 </div>
               ))}
             </div>
