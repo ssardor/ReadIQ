@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import formidable, { type Fields, type Files, type File as FormidableFile } from 'formidable'
 import fs from 'node:fs/promises'
-import { PDFParse } from 'pdf-parse'
+import pdfParse from 'pdf-parse'
 import { requireMentorApi } from '@/utils/apiAuth'
 import {
   DEFAULT_QUESTION_COUNT,
@@ -15,6 +15,8 @@ export const config = {
     bodyParser: false,
   },
 }
+
+const parsePdf = pdfParse as unknown as (data: Buffer) => Promise<{ text?: string | null }>
 
 const MAX_PDF_TEXT_LENGTH = 45000
 const MAX_UPLOAD_SIZE = 30 * 1024 * 1024 // 30MB
@@ -114,15 +116,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const buffer = await fs.readFile(uploaded.filepath)
     await fs.unlink(uploaded.filepath).catch(() => {})
 
-    const parser = new PDFParse({ data: buffer })
     let extractedText: string | undefined
     try {
-      const textResult = await parser.getText()
+  const textResult = await parsePdf(buffer)
       extractedText = textResult.text?.trim()
-    } finally {
-      await parser.destroy().catch(() => {})
+    } catch (parseError) {
+      console.error('PDF parse error', parseError)
+      throw new Error('Не удалось извлечь текст из PDF')
     }
-  if (!extractedText) {
+    if (!extractedText) {
       return res.status(400).json({ message: 'Не удалось извлечь текст из PDF' })
     }
 
