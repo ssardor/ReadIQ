@@ -17,10 +17,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.setHeader('Access-Control-Allow-Credentials', 'true')
   }
 
+  console.log('[generate-from-text] method:', req.method, 'origin:', req.headers.origin)
+
   if (req.method === 'OPTIONS') {
     res.setHeader('Allow', 'POST, OPTIONS')
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    res.setHeader('Access-Control-Allow-Headers', req.headers['access-control-request-headers'] || 'Content-Type, Authorization')
     return res.status(204).end()
   }
 
@@ -29,6 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST, OPTIONS')
+    console.warn('[generate-from-text] rejecting method', req.method)
     return res.status(405).json({ message: 'Method not allowed' })
   }
 

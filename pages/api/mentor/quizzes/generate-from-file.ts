@@ -73,15 +73,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.setHeader('Vary', 'Origin')
     res.setHeader('Access-Control-Allow-Credentials', 'true')
   }
+  console.log('[generate-from-file] method:', req.method, 'origin:', req.headers.origin, 'content-type:', req.headers['content-type'])
   if (req.method === 'OPTIONS') {
     res.setHeader('Allow', 'POST, OPTIONS')
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    res.setHeader('Access-Control-Allow-Headers', req.headers['access-control-request-headers'] || 'Content-Type, Authorization')
     return res.status(204).end()
   }
 
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST, OPTIONS')
+    console.warn('[generate-from-file] rejecting method', req.method)
     return res.status(405).json({ message: 'Method not allowed' })
   }
 
