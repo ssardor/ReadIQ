@@ -12,6 +12,7 @@ export default function Verify() {
   const [joinMessage, setJoinMessage] = useState<string>('')
   const joinAttemptedRef = useRef(false)
   const [joinToken, setJoinToken] = useState<string | null>(null)
+  const [sessionReady, setSessionReady] = useState(true)
 
   useEffect(() => {
     const queryToken = typeof router.query.joinToken === 'string' ? router.query.joinToken : null
@@ -29,11 +30,42 @@ export default function Verify() {
   }, [router.query.joinToken])
 
   useEffect(() => {
-    const { access_token, refresh_token } = router.query
+    const { access_token, refresh_token, expires_in } = router.query
+
     if (typeof access_token === 'string' && typeof refresh_token === 'string') {
-      supabase.auth.setSession({ access_token, refresh_token }).catch((error) => {
-        console.error('Failed to set session during verification', error)
-      })
+      setSessionReady(false)
+
+      const syncSession = async () => {
+        try {
+          const { error } = await supabase.auth.setSession({ access_token, refresh_token })
+          if (error) {
+            throw error
+          }
+
+          const maxAge = typeof expires_in === 'string' ? Number(expires_in) : null
+
+          const response = await fetch('/api/auth/set-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              access_token,
+              refresh_token,
+              expires_in: typeof maxAge === 'number' && Number.isFinite(maxAge) ? maxAge : undefined,
+            }),
+          })
+
+          if (!response.ok) {
+            throw new Error('Failed to persist server session during verification')
+          }
+        } catch (error) {
+          console.error('Failed to synchronize session during verification', error)
+        } finally {
+          setSessionReady(true)
+        }
+      }
+
+      syncSession()
     }
   }, [router.query])
 
@@ -55,7 +87,8 @@ export default function Verify() {
 
   useEffect(() => {
     const attemptJoin = async () => {
-      if (status !== 'success') return
+  if (status !== 'success') return
+  if (!sessionReady) return
       if (!joinToken) return
       if (joinAttemptedRef.current) return
       joinAttemptedRef.current = true
@@ -89,7 +122,7 @@ export default function Verify() {
     }
 
     attemptJoin()
-  }, [status, joinToken])
+  }, [status, joinToken, sessionReady])
 
   return (
     <>
