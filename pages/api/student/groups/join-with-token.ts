@@ -62,17 +62,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
+    console.info('QR join request received', {
+      studentId: student.id,
+      token: token.slice(0, 6),
+    })
+
     const session = await loadSessionByToken(token)
     if (!session) {
+      console.warn('QR join: session not found', { tokenSnippet: token.slice(0, 6) })
       return res.status(404).json({ message: 'QR-сессия не найдена' })
     }
 
     if (session.status !== 'active') {
+      console.warn('QR join: session inactive', {
+        sessionId: session.id,
+        status: session.status,
+      })
       return res.status(410).json({ message: 'Сессия QR-кода завершена' })
     }
 
     const now = new Date()
     if (now.getTime() >= new Date(session.expires_at).getTime()) {
+      console.warn('QR join: session expired during request', {
+        sessionId: session.id,
+        expiresAt: session.expires_at,
+      })
       await supabaseServer
         .from('group_qr_sessions')
         .update({ status: 'expired' })
@@ -92,15 +106,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (group.teacher_id !== session.mentor_id) {
       console.warn('QR join: mentor mismatch', { groupId: group.id, sessionId: session.id })
+      console.warn('QR join: mentor mismatch', {
+        groupId: group.id,
+        sessionId: session.id,
+        expectedMentor: group.teacher_id,
+        actualMentor: session.mentor_id,
+      })
       return res.status(409).json({ message: 'QR-сессия недействительна' })
     }
 
     const membershipRows = await upsertGroupStudent(group.id, student.id)
     const alreadyMember = membershipRows.length === 0
+    console.info('QR join: membership upsert result', {
+      sessionId: session.id,
+      groupId: group.id,
+      studentId: student.id,
+      alreadyMember,
+      insertedRows: membershipRows.map((row) => row.id),
+    })
 
     let assignedCount = 0
     if (!alreadyMember) {
       const quizInstances = await fetchActiveQuizInstances(group.id)
+      console.info('QR join: fetched quiz instances for assignment', {
+        sessionId: session.id,
+        groupId: group.id,
+        studentId: student.id,
+        quizInstanceCount: quizInstances.length,
+      })
       assignedCount = await createAssignmentsForStudent(quizInstances, student.id, session.mentor_id, ASSIGNMENT_SOURCE)
     }
 
@@ -121,6 +154,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       student_id: student.id,
       already_member: alreadyMember,
       assignments_created: assignedCount,
+    })
+
+    console.info('QR join: completed', {
+      sessionId: session.id,
+      groupId: group.id,
+      studentId: student.id,
+      alreadyMember,
+      assignmentsCreated: assignedCount,
     })
 
     return res.status(200).json({

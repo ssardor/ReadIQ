@@ -82,7 +82,14 @@ export async function createAssignmentsForStudent(
   mentorId: string,
   source: string,
 ): Promise<number> {
-  if (!quizInstances.length) return 0
+  if (!quizInstances.length) {
+    console.info('createAssignmentsForStudent: no quiz instances available', {
+      studentId,
+      mentorId,
+      source,
+    })
+    return 0
+  }
 
   const payload = quizInstances.map((instance) => ({
     quiz_instance_id: instance.id,
@@ -101,6 +108,13 @@ export async function createAssignmentsForStudent(
   }
 
   const created = data?.length ?? 0
+  console.info('createAssignmentsForStudent: upsert result', {
+    studentId,
+    mentorId,
+    source,
+    created,
+    quizInstanceIds: data?.map((row) => row.quiz_instance_id) ?? [],
+  })
   if (created > 0) {
     await trackEvent(mentorId, 'assignment_created', {
       student_id: studentId,
