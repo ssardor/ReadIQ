@@ -105,10 +105,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { fields, files } = await parseMultipart(req)
     const uploaded = pickFile(files.file)
     if (!uploaded) {
-      return res.status(400).json({ message: 'Файл не получен' })
+      return res.status(400).json({ message: 'File not received' })
     }
     if (!uploaded.mimetype || !uploaded.mimetype.includes('pdf')) {
-      return res.status(400).json({ message: 'Поддерживаются только PDF файлы' })
+      return res.status(400).json({ message: 'Only PDF files are supported' })
     }
 
   const questionCount = coerceQuestionCount(fields.questionCount)
@@ -122,10 +122,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       extractedText = textResult.text?.trim()
     } catch (parseError) {
       console.error('PDF parse error', parseError)
-      throw new Error('Не удалось извлечь текст из PDF')
+      throw new Error('Failed to extract text from PDF')
     }
     if (!extractedText) {
-      return res.status(400).json({ message: 'Не удалось извлечь текст из PDF' })
+      return res.status(400).json({ message: 'Failed to extract text from PDF' })
     }
 
     const sourceText = normalizeSourceText(extractedText)
@@ -135,7 +135,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ questions })
   } catch (error: any) {
     console.error('AI file generation error:', error)
-    const message = error?.message || 'Не удалось сгенерировать квиз'
+  const message = error?.message || 'Failed to generate quiz'
     const statusCode = error?.httpCode && Number.isInteger(error.httpCode) ? error.httpCode : 500
     return res.status(statusCode).json({ message })
   }

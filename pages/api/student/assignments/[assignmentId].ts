@@ -9,6 +9,34 @@ function normalizeRelation<T>(value: T | T[] | null | undefined): T | null {
   return value
 }
 
+function hashString(value: string): number {
+  let hash = 0
+  for (let index = 0; index < value.length; index++) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0
+  }
+  return hash
+}
+
+function mulberry32(seed: number) {
+  return () => {
+    let t = (seed += 0x6d2b79f5)
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+function shuffleQuestions<T extends { id: string }>(items: T[], seedParts: string[]): T[] {
+  const seed = seedParts.reduce((acc, part) => acc ^ hashString(part), 0) >>> 0
+  const random = mulberry32(seed || 1)
+  const copy = [...items]
+  for (let index = copy.length - 1; index > 0; index--) {
+    const swapIndex = Math.floor(random() * (index + 1))
+    ;[copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]]
+  }
+  return copy
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const student = await requireStudentApi(req, res)
   if (!student) return
@@ -57,6 +85,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ message: 'Failed to fetch quiz questions', error: questionsError.message })
     }
 
+    const randomizedQuestions = shuffleQuestions(questions ?? [], [assignmentRow.id, student.id])
+
     const { data: attempts, error: attemptsError } = await supabaseServer
       .from('attempts')
       .select('id,score,submitted_at,answers,duration_seconds')
@@ -72,7 +102,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const attempt = attempts?.[0] ?? null
 
     const revealAnswers = attempt || assignmentRow.status === 'completed'
-    const sanitizedQuestions = (questions ?? []).map((question) => (
+    const sanitizedQuestions = randomizedQuestions.map((question) => (
       revealAnswers
         ? question
         : { id: question.id, text: question.text, choices: question.choices }
@@ -94,7 +124,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           group,
         },
       },
-      questions: sanitizedQuestions,
+  questions: sanitizedQuestions,
       attempt,
     })
   }

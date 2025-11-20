@@ -13,8 +13,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { presentation_id } = req.body || {}
   // Simple mock
   const candidates = Array.from({ length: 8 }).map((_, i) => ({
-    text: `Авто-вопрос #${i + 1} по презентации ${presentation_id || 'N/A'}`,
-    choices: ['Вариант A','Вариант B','Вариант C','Вариант D'],
+    text: `Auto question #${i + 1} for presentation ${presentation_id || 'N/A'}`,
+    choices: ['Option A','Option B','Option C','Option D'],
     correct_indexes: [0],
     difficulty: ['easy','medium','hard'][i % 3],
     source_slide_index: i + 1

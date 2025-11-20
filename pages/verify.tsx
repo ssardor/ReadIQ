@@ -95,8 +95,8 @@ export default function Verify() {
       if (joinAttemptedRef.current) return
       joinAttemptedRef.current = true
 
-      setJoinState('joining')
-      setJoinMessage('Подключаем к группе…')
+  setJoinState('joining')
+  setJoinMessage('Joining the group...')
       try {
         const response = await fetch('/api/student/groups/join-with-token', {
           method: 'POST',
@@ -108,18 +108,18 @@ export default function Verify() {
         const payload = await response.json().catch(() => ({}))
 
         if (!response.ok) {
-          throw new Error(payload?.message || 'Не удалось присоединиться к группе')
+          throw new Error(payload?.message || 'Failed to join the group')
         }
 
         setJoinState('success')
-        setJoinMessage(payload?.message || 'Вы успешно присоединились к группе')
+        setJoinMessage(payload?.message || 'You have joined the group')
         if (typeof window !== 'undefined') {
           window.localStorage.removeItem('pending-join-token')
         }
       } catch (error: any) {
         console.error('Auto join after verification failed', error)
-        setJoinState('error')
-        setJoinMessage(error?.message || 'Не удалось присоединиться к группе. Попробуйте позже или используйте QR-код повторно.')
+  setJoinState('error')
+  setJoinMessage(error?.message || 'Could not join the group. Try again later or reuse the QR code.')
       }
     }
 
@@ -153,7 +153,7 @@ export default function Verify() {
                   Your email has been successfully verified.
                 </p>
                 {joinState === 'joining' && (
-                  <p className="text-sm text-gray-500">{joinMessage || 'Подключаем к группе…'}</p>
+                  <p className="text-sm text-gray-500">{joinMessage || 'Joining the group...'}</p>
                 )}
                 {joinState === 'success' && (
                   <p className="text-sm text-green-600">{joinMessage}</p>

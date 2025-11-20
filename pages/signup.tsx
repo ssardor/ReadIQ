@@ -84,11 +84,7 @@ export default function SignUp() {
     setIsLoading(true)
 
     try {
-      // Step 1: Sign up with Supabase Auth
       const targetRole = joinToken ? 'student' : role
-      const redirectUrl = joinToken
-        ? `${window.location.origin}/verify?status=success&joinToken=${encodeURIComponent(joinToken)}`
-        : `${window.location.origin}/verify`
 
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
@@ -98,8 +94,7 @@ export default function SignUp() {
             full_name: formData.fullName,
             role: targetRole,
             university: formData.university || null
-          },
-          emailRedirectTo: redirectUrl
+          }
         }
       })
 
@@ -109,18 +104,76 @@ export default function SignUp() {
         throw new Error('Failed to create user')
       }
 
-      // Wait a moment for Supabase to fully create the user
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // Ensure we have a session so the user is signed in immediately.
+      let session = authData.session
+      if (!session) {
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password
+        })
 
-      // Step 2 removed: profile is created by DB trigger from auth metadata
-      // We rely on migration 003_profile_triggers.sql to auto-create users_profiles.
+        if (signInError) throw signInError
+        if (!signInData.session) {
+          throw new Error('No session returned after sign up')
+        }
+        session = signInData.session
+      }
 
-      setToast({ message: 'Account created! Please check your email to verify your account.', type: 'success' })
+      const cookieResp = await fetch('/api/auth/set-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          access_token: session.access_token,
+          refresh_token: session.refresh_token,
+          expires_in: session.expires_in
+        })
+      })
 
-      // Redirect to login after 2 seconds
-      setTimeout(() => {
-        router.push('/login')
-      }, 2000)
+      if (!cookieResp.ok) {
+        throw new Error('Failed to persist session')
+      }
+
+  let successMessage = 'Account created! Redirecting to your dashboard...'
+  let joinFailed = false
+
+      if (joinToken) {
+        try {
+          const joinResp = await fetch('/api/student/groups/join-with-token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ token: joinToken })
+          })
+
+          const joinPayload = await joinResp.json().catch(() => ({}))
+
+          if (joinResp.ok) {
+            successMessage = joinPayload?.message || successMessage
+            if (typeof window !== 'undefined') {
+              window.localStorage.removeItem('pending-join-token')
+            }
+          } else {
+            const errorMessage = joinPayload?.message || 'Failed to join the group automatically'
+            setToast({ message: errorMessage, type: 'error' })
+            joinFailed = true
+          }
+        } catch (joinError: any) {
+          console.error('Join with token after signup failed', joinError)
+          setToast({
+            message: 'Could not join the group automatically. Try again using the QR code.',
+            type: 'error'
+          })
+          joinFailed = true
+        }
+      }
+
+      if (!joinFailed) {
+        setToast({ message: successMessage, type: 'success' })
+      }
+
+      setIsLoading(false)
+      router.push('/dashboard')
 
     } catch (error: any) {
       console.error('Sign up error:', error)
@@ -160,7 +213,7 @@ export default function SignUp() {
             <form className="space-y-6" onSubmit={handleSubmit}>
               {joinToken ? (
                 <div className="rounded border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-                  Регистрация по QR-ссылке. Аккаунт будет создан как студент, после подтверждения email вы автоматически присоединитесь к группе.
+                  Signing up from a QR link. The account will be created as a student and you will be auto-joined to the group.
                 </div>
               ) : (
                 <RoleToggle role={role} onChange={setRole} />

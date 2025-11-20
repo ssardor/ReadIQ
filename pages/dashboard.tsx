@@ -126,10 +126,10 @@ export default function Dashboard({ profile, assignments, analytics }: Dashboard
                 {profile.role === 'mentor' && (
                   <div className="flex flex-wrap gap-2">
                     <Link href="/mentor/groups" className="inline-flex items-center justify-center rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:border-primary-200 hover:bg-primary-50">
-                      Перейти к группам
+                      Go to groups
                     </Link>
                     <Link href="/mentor/quizzes" className="inline-flex items-center justify-center rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:border-primary-200 hover:bg-primary-50">
-                      Перейти к квизам
+                      Go to quizzes
                     </Link>
                   </div>
                 )}
@@ -141,60 +141,60 @@ export default function Dashboard({ profile, assignments, analytics }: Dashboard
                 <section className="rounded-lg bg-white shadow p-6">
                   <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div>
-                      <h2 className="text-2xl font-bold text-gray-900">Обзор наставника</h2>
-                      <p className="text-gray-600">Следите за активностью групп и быстро переходите к ключевым действиям.</p>
+                      <h2 className="text-2xl font-bold text-gray-900">Mentor overview</h2>
+                      <p className="text-gray-600">Track group activity and jump to key actions quickly.</p>
                     </div>
                     <Link href="/mentor/analytics" className="inline-flex items-center justify-center rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-primary-700">
-                      Перейти к аналитике
+                      Go to analytics
                     </Link>
                   </div>
                 </section>
 
                 <section className="grid gap-4 md:grid-cols-3">
                   <article className="rounded-lg border border-gray-100 bg-white p-5 shadow-sm">
-                    <p className="text-sm text-gray-500">Назначений</p>
+                    <p className="text-sm text-gray-500">Assignments</p>
                     <p className="mt-2 text-3xl font-semibold text-primary-600">{mentorSummary ? mentorSummary.totalAssignments : '—'}</p>
-                    <p className="mt-2 text-xs text-gray-500">Выданные задания по всем группам.</p>
+                    <p className="mt-2 text-xs text-gray-500">Total assignments across all groups.</p>
                   </article>
                   <article className="rounded-lg border border-gray-100 bg-white p-5 shadow-sm">
-                    <p className="text-sm text-gray-500">Завершено</p>
+                    <p className="text-sm text-gray-500">Completed</p>
                     <p className="mt-2 text-3xl font-semibold text-green-600">{mentorSummary ? mentorSummary.completedAssignments : '—'}</p>
-                    <p className="mt-2 text-xs text-gray-500">Доля: {formatPercent(mentorCompletionRate)}</p>
+                    <p className="mt-2 text-xs text-gray-500">Completion rate: {formatPercent(mentorCompletionRate)}</p>
                   </article>
                   <article className="rounded-lg border border-gray-100 bg-white p-5 shadow-sm">
-                    <p className="text-sm text-gray-500">Активные студенты</p>
+                    <p className="text-sm text-gray-500">Active students</p>
                     <p className="mt-2 text-3xl font-semibold text-blue-600">{mentorSummary ? mentorActiveStudents : '—'}</p>
-                    <p className="mt-2 text-xs text-gray-500">С зафиксированными результатами.</p>
+                    <p className="mt-2 text-xs text-gray-500">With recorded results.</p>
                   </article>
                 </section>
 
                 <section className="grid gap-4 md:grid-cols-2">
                   <article className="rounded-lg border border-gray-100 bg-white p-6 shadow-sm">
-                    <h3 className="text-lg font-semibold text-gray-900">Быстрые действия</h3>
-                    <p className="mt-1 text-sm text-gray-600">Запустите работу с группами и квизами.</p>
+                    <h3 className="text-lg font-semibold text-gray-900">Quick actions</h3>
+                    <p className="mt-1 text-sm text-gray-600">Get started with groups and quizzes.</p>
                     <div className="mt-4 grid gap-3">
                       <Link href="/mentor/groups" className="flex items-center justify-between rounded border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 hover:border-primary-200 hover:bg-primary-50">
-                        <span>Открыть список групп</span>
+                        <span>Open group list</span>
                         <span className="text-xs text-gray-500">CMD+G</span>
                       </Link>
                       <Link href="/mentor/quizzes" className="flex items-center justify-between rounded border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 hover:border-primary-200 hover:bg-primary-50">
-                        <span>Открыть список квизов</span>
+                        <span>Open quiz list</span>
                         <span className="text-xs text-gray-500">CMD+Q</span>
                       </Link>
                       <Link href="/mentor/quizzes/new" className="flex items-center justify-between rounded border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 hover:border-primary-200 hover:bg-primary-50">
-                        <span>Создать новый квиз</span>
+                        <span>Create new quiz</span>
                         <span className="text-xs text-gray-500">CMD+N</span>
                       </Link>
                       <Link href="/mentor/groups" className="flex items-center justify-between rounded border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 hover:border-primary-200 hover:bg-primary-50">
-                        <span>Добавить студентов в группу</span>
+                        <span>Add students to a group</span>
                         <span className="text-xs text-gray-500">CMD+S</span>
                       </Link>
                     </div>
                   </article>
 
                   <article className="rounded-lg border border-gray-100 bg-white p-6 shadow-sm">
-                    <h3 className="text-lg font-semibold text-gray-900">Недавние группы</h3>
-                    <p className="mt-1 text-sm text-gray-600">Последние активные группы и их прогресс.</p>
+                    <h3 className="text-lg font-semibold text-gray-900">Recent groups</h3>
+                    <p className="mt-1 text-sm text-gray-600">Most recently active groups and their progress.</p>
                     {analytics && analytics.groups.length ? (
                       <div className="mt-4 space-y-3">
                         {analytics.groups.slice(0, 3).map((group) => (
@@ -203,13 +203,13 @@ export default function Dashboard({ profile, assignments, analytics }: Dashboard
                               <p className="text-sm font-medium text-gray-900">{group.name}</p>
                               <span className="rounded bg-green-50 px-2 py-1 text-xs font-semibold text-green-700">{formatPercent(group.completionRate)}</span>
                             </div>
-                            <p className="mt-1 text-xs text-gray-500">{group.studentCount} студентов • {group.quizCount} квизов</p>
+                            <p className="mt-1 text-xs text-gray-500">{group.studentCount} students • {group.quizCount} quizzes</p>
                           </div>
                         ))}
                       </div>
                     ) : (
                       <div className="mt-4 rounded border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-sm text-gray-500">
-                        Групп пока нет. Создайте группу, чтобы начать отслеживать прогресс.
+                        No groups yet. Create a group to start tracking progress.
                       </div>
                     )}
                   </article>
@@ -218,10 +218,10 @@ export default function Dashboard({ profile, assignments, analytics }: Dashboard
                 <section className="rounded-lg border border-gray-100 bg-white p-6 shadow-sm">
                   <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900">Активность студентов</h3>
-                      <p className="text-sm text-gray-600">Последние студенты, которые прошли или начали квизы.</p>
+                      <h3 className="text-lg font-semibold text-gray-900">Student activity</h3>
+                      <p className="text-sm text-gray-600">Latest students who completed or started quizzes.</p>
                     </div>
-                    <Link href="/mentor/analytics" className="text-sm font-medium text-primary-600 hover:underline">Подробная аналитика</Link>
+                    <Link href="/mentor/analytics" className="text-sm font-medium text-primary-600 hover:underline">Detailed analytics</Link>
                   </div>
                   {analytics && analytics.students.length ? (
                     <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -230,11 +230,11 @@ export default function Dashboard({ profile, assignments, analytics }: Dashboard
                           <p className="text-sm font-semibold text-gray-900">{student.fullName}</p>
                           <p className="text-xs text-gray-500">{student.groupNames.join(', ') || '—'}</p>
                           <div className="mt-2 flex items-center justify-between text-xs text-gray-600">
-                            <span>Средний балл</span>
+                            <span>Average score</span>
                             <span className="font-semibold text-gray-900">{formatScore(student.averageScore)}</span>
                           </div>
                           <div className="mt-1 flex items-center justify-between text-xs text-gray-600">
-                            <span>Завершено</span>
+                            <span>Completed</span>
                             <span className="font-semibold text-gray-900">{student.completedAssignments}</span>
                           </div>
                         </div>
@@ -242,7 +242,7 @@ export default function Dashboard({ profile, assignments, analytics }: Dashboard
                     </div>
                   ) : (
                     <div className="mt-4 rounded border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-sm text-gray-500">
-                      Когда студенты начнут проходить квизы, здесь появится их активность.
+                      Student activity will show up here once they start taking quizzes.
                     </div>
                   )}
                 </section>

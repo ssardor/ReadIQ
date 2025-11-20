@@ -53,10 +53,10 @@ const MentorGroupDetail: React.FC<GroupDetailProps> = ({ initialGroup, initialRo
   const refreshData = useCallback(async () => {
     setRefreshing(true)
     try {
-  const response = await fetch(`/api/mentor/groups/${group.id}`, { credentials: 'include' })
+      const response = await fetch(`/api/mentor/groups/${group.id}`, { credentials: 'include' })
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}))
-        throw new Error(payload?.message || 'Не удалось обновить информацию группы')
+        throw new Error(payload?.message || 'Failed to refresh group details')
       }
       const payload = await response.json()
       setGroup(payload.group)
@@ -64,7 +64,7 @@ const MentorGroupDetail: React.FC<GroupDetailProps> = ({ initialGroup, initialRo
       setInvites(payload.pendingInvites)
       setStats(payload.stats)
     } catch (error: any) {
-      push(error?.message || 'Ошибка при обновлении данных', 'error')
+      push(error?.message || 'Failed to refresh group data', 'error')
     } finally {
       setRefreshing(false)
     }
@@ -76,60 +76,60 @@ const MentorGroupDetail: React.FC<GroupDetailProps> = ({ initialGroup, initialRo
         <title>{group.name} • Mentor Group</title>
       </Head>
       <div className="mx-auto max-w-7xl px-6 py-6">
-        <BackButton href="/mentor/groups" label="← Назад к группам" className="mb-4" />
+        <BackButton href="/mentor/groups" label="← Back to groups" className="mb-4" />
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-gray-900">{group.name}</h1>
-            <p className="text-sm text-gray-500">Создана {formatDate(group.created_at)} • {stats.students} студентов</p>
+            <p className="text-sm text-gray-500">Created {formatDate(group.created_at)} • {stats.students} students</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button onClick={() => refreshData()} disabled={isRefreshing} className="rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60">
-              {isRefreshing ? 'Обновление…' : 'Обновить'}
+              {isRefreshing ? 'Refreshing…' : 'Refresh'}
             </button>
             <button onClick={() => setQrModalOpen(true)} className="rounded border border-primary-600 px-4 py-2 text-sm font-medium text-primary-700 hover:bg-primary-50">
-              Показать QR
+              Show QR
             </button>
             <button onClick={() => setModalOpen(true)} className="rounded bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-primary-700">
-              Добавить студентов
+              Add students
             </button>
           </div>
         </div>
 
         <div className="mt-6 grid gap-4 md:grid-cols-3">
           <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Терм</h3>
-            <p className="mt-1 text-lg font-semibold text-gray-900">{group.term || 'Не указан'}</p>
+            <h3 className="text-sm font-medium text-gray-500">Term</h3>
+            <p className="mt-1 text-lg font-semibold text-gray-900">{group.term || 'Not specified'}</p>
           </div>
           <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Вместимость</h3>
-            <p className="mt-1 text-lg font-semibold text-gray-900">{group.capacity ? `${group.capacity}` : 'Без ограничения'}</p>
+            <h3 className="text-sm font-medium text-gray-500">Capacity</h3>
+            <p className="mt-1 text-lg font-semibold text-gray-900">{group.capacity ? `${group.capacity}` : 'Unlimited'}</p>
           </div>
           <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Статус</h3>
-            <p className="mt-1 text-lg font-semibold text-gray-900">{group.is_archived ? 'Архив' : 'Активна'}</p>
+            <h3 className="text-sm font-medium text-gray-500">Status</h3>
+            <p className="mt-1 text-lg font-semibold text-gray-900">{group.is_archived ? 'Archived' : 'Active'}</p>
           </div>
         </div>
 
         <section className="mt-8">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Состав группы</h2>
-            <span className="text-sm text-gray-500">{roster.length} участников</span>
+            <h2 className="text-lg font-semibold text-gray-900">Group roster</h2>
+            <span className="text-sm text-gray-500">{roster.length} members</span>
           </div>
           <div className="mt-3 overflow-x-auto rounded-lg border border-gray-100 bg-white shadow">
             <table className="min-w-full divide-y divide-gray-100">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">ФИО</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">ID студента</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Университет</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Статус</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Дата присоединения</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Full name</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Student ID</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">University</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Joined at</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white">
                 {roster.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-6 text-center text-sm text-gray-500">В группе пока нет студентов</td>
+                    <td colSpan={5} className="px-4 py-6 text-center text-sm text-gray-500">No students in this group yet</td>
                   </tr>
                 )}
                 {roster.map((entry) => (
@@ -148,23 +148,23 @@ const MentorGroupDetail: React.FC<GroupDetailProps> = ({ initialGroup, initialRo
 
         <section className="mt-10">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Ожидают приглашение</h2>
-            <span className="text-sm text-gray-500">{invites.length} отправлено</span>
+            <h2 className="text-lg font-semibold text-gray-900">Pending invitations</h2>
+            <span className="text-sm text-gray-500">{invites.length} sent</span>
           </div>
           <div className="mt-3 overflow-x-auto rounded-lg border border-gray-100 bg-white shadow">
             <table className="min-w-full divide-y divide-gray-100">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Email</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Статус</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Отправлено</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Истекает</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Sent at</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Expires at</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white">
                 {invites.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-4 py-6 text-center text-sm text-gray-500">Новых приглашений нет</td>
+                    <td colSpan={4} className="px-4 py-6 text-center text-sm text-gray-500">No invitations yet</td>
                   </tr>
                 )}
                 {invites.map((invite) => (

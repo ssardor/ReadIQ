@@ -63,6 +63,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ questions })
   } catch (error: any) {
     console.error('AI generation error:', error)
-    return res.status(500).json({ message: error?.message || 'Не удалось сгенерировать квиз' })
+  return res.status(500).json({ message: error?.message || 'Failed to generate quiz' })
   }
 }

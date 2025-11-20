@@ -323,7 +323,7 @@ export async function getMentorAnalytics(mentorId: string): Promise<MentorAnalyt
 
       history.push({
         assignmentId: assignment.id,
-        quizTitle: quiz?.title ?? 'Без названия',
+  quizTitle: quiz?.title ?? 'Untitled',
         groupName: group?.name ?? '—',
         status: assignment.status,
         score: normalizedScore,

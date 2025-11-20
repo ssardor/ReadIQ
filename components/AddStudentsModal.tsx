@@ -35,20 +35,19 @@ function statusChip(result: EmailResult) {
   const base = 'px-2 py-1 rounded text-xs font-medium'
   switch (result.status) {
     case 'added':
-      return <span className={`${base} bg-green-100 text-green-700`}>Добавлен</span>
+      return <span className={`${base} bg-green-100 text-green-700`}>Added</span>
     case 'invited':
-      return <span className={`${base} bg-amber-100 text-amber-700`}>Приглашён</span>
+      return <span className={`${base} bg-amber-100 text-amber-700`}>Invited</span>
     case 'already_member':
-      return <span className={`${base} bg-blue-100 text-blue-700`}>Уже в группе</span>
+      return <span className={`${base} bg-blue-100 text-blue-700`}>Already in group</span>
     case 'already_invited':
-      return <span className={`${base} bg-gray-100 text-gray-600`}>Приглашение отправлено ранее</span>
+      return <span className={`${base} bg-gray-100 text-gray-600`}>Invitation already sent</span>
     case 'failed':
     default:
-      return <span className={`${base} bg-red-100 text-red-700`}>Ошибка</span>
+      return <span className={`${base} bg-red-100 text-red-700`}>Failed</span>
   }
 }
-
-export const AddStudentsModal: React.FC<AddStudentsModalProps> = ({ groupId, isOpen, onClose, onSuccess }) => {
+export function AddStudentsModal({ groupId, isOpen, onClose, onSuccess }: AddStudentsModalProps) {
   const { push } = useToasts()
   const [singleEmail, setSingleEmail] = useState('')
   const [bulkEmails, setBulkEmails] = useState('')
@@ -69,9 +68,9 @@ export const AddStudentsModal: React.FC<AddStudentsModalProps> = ({ groupId, isO
       const text = typeof reader.result === 'string' ? reader.result : ''
       const rows = extractEmails(text)
       setCsvSummary(rows)
-      push(`Импортировано из CSV: ${rows.length} email`, 'info')
+      push(`Imported ${rows.length} emails from CSV`, 'info')
     }
-    reader.onerror = () => push('Не удалось прочитать CSV файл', 'error')
+    reader.onerror = () => push('Failed to read CSV file', 'error')
     reader.readAsText(file)
   }
 
@@ -80,7 +79,7 @@ export const AddStudentsModal: React.FC<AddStudentsModalProps> = ({ groupId, isO
     const emails = mergeEmailLists(singleEmail ? [singleEmail] : [], extractEmails(bulkEmails), csvSummary)
 
     if (!emails.length) {
-      push('Добавьте хотя бы один email', 'error')
+      push('Add at least one email', 'error')
       return
     }
 
@@ -95,14 +94,14 @@ export const AddStudentsModal: React.FC<AddStudentsModalProps> = ({ groupId, isO
 
       const payload = await response.json()
       if (!response.ok) {
-        throw new Error(payload?.message || 'Не удалось добавить студентов')
+        throw new Error(payload?.message || 'Failed to add students')
       }
 
       setResults(payload.results ?? [])
       if (payload.summary?.added || payload.summary?.invited) {
-        push(`Добавлено ${payload.summary.added || 0}, приглашено ${payload.summary.invited || 0}`, 'success')
+        push(`Added ${payload.summary.added || 0}, invited ${payload.summary.invited || 0}`, 'success')
       } else {
-        push('Нет новых студентов. Проверьте статусы.', 'info')
+        push('No new students. Check statuses.', 'info')
       }
 
       setSingleEmail('')
@@ -110,7 +109,7 @@ export const AddStudentsModal: React.FC<AddStudentsModalProps> = ({ groupId, isO
       setCsvSummary([])
       onSuccess?.()
     } catch (error: any) {
-      push(error?.message ?? 'Ошибка при добавлении студентов', 'error')
+      push(error?.message ?? 'Error while adding students', 'error')
     } finally {
       setIsSubmitting(false)
     }
@@ -118,7 +117,7 @@ export const AddStudentsModal: React.FC<AddStudentsModalProps> = ({ groupId, isO
 
   const handleResendInvite = async (email: string) => {
     // Placeholder for resend invite endpoint when implemented
-    push(`Повторная отправка приглашения ${email} пока недоступна`, 'info')
+    push(`Resending the invitation to ${email} is not available yet`, 'info')
   }
 
   return (
@@ -128,10 +127,10 @@ export const AddStudentsModal: React.FC<AddStudentsModalProps> = ({ groupId, isO
           <motion.div className="w-full max-w-3xl rounded-lg bg-white shadow-xl" initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}>
             <div className="flex items-center justify-between border-b px-6 py-4">
               <div>
-                <h2 className="text-xl font-semibold">Добавить студентов</h2>
-                <p className="text-sm text-gray-500">Укажите email студентов или загрузите CSV файл. Поддерживается массовое добавление.</p>
+                <h2 className="text-xl font-semibold">Add students</h2>
+                <p className="text-sm text-gray-500">Enter student emails or upload a CSV file. Bulk import is supported.</p>
               </div>
-              <button onClick={onClose} className="rounded-md p-2 text-gray-500 hover:bg-gray-100" aria-label="Закрыть">
+              <button onClick={onClose} className="rounded-md p-2 text-gray-500 hover:bg-gray-100" aria-label="Close">
                 ✕
               </button>
             </div>
@@ -139,53 +138,53 @@ export const AddStudentsModal: React.FC<AddStudentsModalProps> = ({ groupId, isO
             <form onSubmit={handleSubmit} className="space-y-6 px-6 py-5">
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="flex flex-col gap-2">
-                  <span className="text-sm font-medium text-gray-700">Один email</span>
+                  <span className="text-sm font-medium text-gray-700">Single email</span>
                   <input type="email" value={singleEmail} onChange={(e) => setSingleEmail(e.target.value)} placeholder="student@university.edu" className="w-full rounded border border-gray-300 px-3 py-2 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500" />
                 </label>
 
                 <label className="flex flex-col gap-2">
-                  <span className="text-sm font-medium text-gray-700">CSV список</span>
+                  <span className="text-sm font-medium text-gray-700">CSV list</span>
                   <input type="file" accept=".csv" onChange={handleCsvUpload} className="w-full text-sm text-gray-600 file:mr-4 file:rounded file:border file:border-primary-200 file:bg-primary-50 file:px-3 file:py-2 file:text-primary-700 hover:file:bg-primary-100" />
-                  {csvSummary.length > 0 && <span className="text-xs text-gray-500">Загружено адресов: {csvSummary.length}</span>}
+                  {csvSummary.length > 0 && <span className="text-xs text-gray-500">Addresses imported: {csvSummary.length}</span>}
                 </label>
               </div>
 
               <label className="flex flex-col gap-2">
-                <span className="text-sm font-medium text-gray-700">Несколько email (по одному на строке)</span>
+                <span className="text-sm font-medium text-gray-700">Multiple emails (one per line)</span>
                 <textarea value={bulkEmails} onChange={(e) => setBulkEmails(e.target.value)} rows={6} placeholder="student1@university.edu\nstudent2@college.edu" className="w-full rounded border border-gray-300 px-3 py-2 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500" />
               </label>
 
               {selectionPreview.length > 0 && (
                 <div className="rounded border border-dashed border-gray-300 bg-gray-50 p-4 text-sm text-gray-600">
-                  <strong className="font-semibold text-gray-700">Будут обработаны ({selectionPreview.length}):</strong>
+                  <strong className="font-semibold text-gray-700">Will be processed ({selectionPreview.length}):</strong>
                   <div className="mt-2 grid gap-1 md:grid-cols-2">
                     {selectionPreview.slice(0, 12).map((email) => (
                       <span key={email} className="truncate">{email}</span>
                     ))}
                   </div>
-                  {selectionPreview.length > 12 && <div className="mt-2 text-xs text-gray-500">и ещё {selectionPreview.length - 12}</div>}
+                  {selectionPreview.length > 12 && <div className="mt-2 text-xs text-gray-500">and {selectionPreview.length - 12} more</div>}
                 </div>
               )}
 
               <div className="flex items-center justify-between">
-                <p className="text-xs text-gray-500">Повторное добавление email не создаёт дубликаты: существующие студенты будут пропущены, приглашения обновлены.</p>
+                <p className="text-xs text-gray-500">Re-adding emails does not create duplicates: existing students are skipped and invitations refreshed.</p>
                 <button type="submit" disabled={isSubmitting} className="rounded bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50">
-                  {isSubmitting ? 'Обработка…' : 'Отправить приглашения'}
+                  {isSubmitting ? 'Processing...' : 'Send invitations'}
                 </button>
               </div>
             </form>
 
             {results.length > 0 && (
               <div className="px-6 pb-6">
-                <h3 className="mb-3 text-sm font-semibold text-gray-700">Результаты</h3>
+                <h3 className="mb-3 text-sm font-semibold text-gray-700">Results</h3>
                 <div className="max-h-64 overflow-y-auto rounded border border-gray-200">
                   <table className="min-w-full text-sm">
                     <thead className="bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                       <tr>
                         <th className="px-4 py-3">Email</th>
-                        <th className="px-4 py-3">Статус</th>
-                        <th className="px-4 py-3">Комментарий</th>
-                        <th className="px-4 py-3 text-right">Действия</th>
+                        <th className="px-4 py-3">Status</th>
+                        <th className="px-4 py-3">Comment</th>
+                        <th className="px-4 py-3 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -197,7 +196,7 @@ export const AddStudentsModal: React.FC<AddStudentsModalProps> = ({ groupId, isO
                           <td className="px-4 py-3 text-right">
                             {result.status === 'invited' && (
                               <button type="button" onClick={() => handleResendInvite(result.email)} className="text-xs font-medium text-primary-600 hover:text-primary-700">
-                                Отправить повторно
+                                Resend
                               </button>
                             )}
                           </td>

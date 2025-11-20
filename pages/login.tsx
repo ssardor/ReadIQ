@@ -64,7 +64,7 @@ export default function Login() {
         throw new Error(t('Login failed'))
       }
 
-      // Устанавливаем серверные куки через API, чтобы SSR видел сессию
+  // Set server cookies via API so SSR sees the session
       const session = data.session
       if (!session) {
         throw new Error(t('No session returned'))

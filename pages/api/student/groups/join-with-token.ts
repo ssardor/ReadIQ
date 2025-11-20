@@ -70,7 +70,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const session = await loadSessionByToken(token)
     if (!session) {
       console.warn('QR join: session not found', { tokenSnippet: token.slice(0, 6) })
-      return res.status(404).json({ message: 'QR-сессия не найдена' })
+      return res.status(404).json({ message: 'QR session not found' })
     }
 
     if (session.status !== 'active') {
@@ -78,7 +78,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         sessionId: session.id,
         status: session.status,
       })
-      return res.status(410).json({ message: 'Сессия QR-кода завершена' })
+      return res.status(410).json({ message: 'QR code session has ended' })
     }
 
     const now = new Date()
@@ -92,16 +92,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .update({ status: 'expired' })
         .eq('id', session.id)
 
-      return res.status(410).json({ message: 'Срок действия QR-кода истёк' })
+      return res.status(410).json({ message: 'QR code session has expired' })
     }
 
     const group = await fetchGroup(session.group_id)
     if (!group) {
-      return res.status(404).json({ message: 'Группа не найдена' })
+      return res.status(404).json({ message: 'Group not found' })
     }
 
     if (group.is_archived) {
-      return res.status(409).json({ message: 'Группа архивирована' })
+      return res.status(409).json({ message: 'Group has been archived' })
     }
 
     if (group.teacher_id !== session.mentor_id) {
@@ -112,7 +112,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         expectedMentor: group.teacher_id,
         actualMentor: session.mentor_id,
       })
-      return res.status(409).json({ message: 'QR-сессия недействительна' })
+  return res.status(409).json({ message: 'QR session is invalid' })
     }
 
     const membershipRows = await upsertGroupStudent(group.id, student.id)
@@ -168,12 +168,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       joined: !alreadyMember,
       alreadyMember,
       assignmentsCreated: assignedCount,
-      message: alreadyMember ? 'Вы уже состоите в этой группе' : `Вы успешно присоединились к группе «${group.name}»`,
+      message: alreadyMember ? 'You are already a member of this group' : `You have successfully joined the group "${group.name}"`,
       groupId: group.id,
       groupName: group.name,
     })
   } catch (error: any) {
     console.error('QR join error', error)
-    return res.status(500).json({ message: error?.message ?? 'Не удалось присоединиться к группе' })
+    return res.status(500).json({ message: error?.message ?? 'Failed to join the group' })
   }
 }

@@ -1,24 +1,26 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import type { Group, Question } from '@/lib/types'
+import { useTranslation } from '@/components/SettingsProvider'
 
 type Props = {
   onCreated?: (quizId: string) => void
 }
 
-const parseJsonSafe = async <T = any>(response: Response): Promise<T | null> => {
+const parseJsonSafe = async <T = any>(response: Response, errorMessage: string): Promise<T | null> => {
   try {
     const text = await response.text()
     if (!text) return null
     return JSON.parse(text) as T
   } catch (error) {
     console.error('Failed to parse JSON response', error)
-    throw new Error('Сервер вернул некорректный ответ. Повторите попытку позже.')
+    throw new Error(errorMessage)
   }
 }
 
 export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
+  const t = useTranslation()
   const [step, setStep] = useState(1)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -38,11 +40,14 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const MAX_AI_FILE_SIZE_MB = 30
   const MAX_AI_FILE_SIZE_BYTES = MAX_AI_FILE_SIZE_MB * 1024 * 1024
-  const difficultyOptions: Array<{ value: 'easy' | 'medium' | 'hard'; label: string; helper: string }> = [
-    { value: 'easy', label: 'Лёгкий', helper: 'Для разогрева и базового воспроизведения' },
-    { value: 'medium', label: 'Средний', helper: 'Проверка понимания и применения' },
-    { value: 'hard', label: 'Сложный', helper: 'На глубокий анализ и синтез' },
-  ]
+  const difficultyOptions = useMemo(
+    () => [
+      { value: 'easy' as const, label: t('Easy'), helper: t('Great for warm-up and basic recall.') },
+      { value: 'medium' as const, label: t('Medium'), helper: t('Checks understanding and application.') },
+      { value: 'hard' as const, label: t('Hard'), helper: t('Targets deeper analysis and synthesis.') },
+    ],
+    [t],
+  )
 
   useEffect(() => {
     const loadGroups = async () => {
@@ -51,16 +56,16 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
       try {
         const response = await fetch('/api/mentor/groups', { credentials: 'include' })
         const payload = await response.json()
-        if (!response.ok) throw new Error(payload?.message || 'Не удалось загрузить группы')
+        if (!response.ok) throw new Error(payload?.message || t('Failed to load groups'))
         setGroups(payload.groups ?? [])
       } catch (error: any) {
-        setGroupsError(error?.message || 'Ошибка при загрузке групп')
+        setGroupsError(error?.message || t('Error while loading groups'))
       } finally {
         setGroupsLoading(false)
       }
     }
     loadGroups()
-  }, [])
+  }, [t])
 
   const addQuestion = () => setQuestions(prev => [...prev, { text: '', choices: ['A','B','C','D'], correct_indexes: [0], difficulty: 'medium' }])
 
@@ -93,16 +98,16 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
       })
       let payload: any = null
       try {
-        payload = await parseJsonSafe(response)
+  payload = await parseJsonSafe(response, t('Server returned an invalid response. Please try again.'))
       } catch (parseError) {
         payload = null
       }
       if (!response.ok) {
-        const message = payload?.message || 'Не удалось сгенерировать вопросы'
+        const message = payload?.message || t('Failed to generate questions')
         throw new Error(message)
       }
       if (!payload || !Array.isArray((payload as any).questions) || (payload as any).questions.length === 0) {
-        throw new Error('AI не вернул вопросы. Попробуйте уточнить описание.')
+        throw new Error(t('AI did not return any questions. Try refining the prompt.'))
       }
       setQuestions((payload as any).questions.map((question: Question) => ({
         ...question,
@@ -110,7 +115,7 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
       })))
       setStep(2)
     } catch (error: any) {
-      alert(error?.message || 'Ошибка AI генерации')
+      alert(error?.message || t('AI generation failed'))
     } finally {
       setAiGenerating(false)
     }
@@ -118,7 +123,7 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
 
   const handleGenerateQuestionsFromFile = async () => {
     if (!aiFile) {
-      alert('Загрузите PDF файл перед генерацией')
+      alert(t('Upload a PDF file before generating'))
       return
     }
     setAiGenerating(true)
@@ -136,16 +141,20 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
       })
       let data: any = null
       try {
-        data = await parseJsonSafe(response)
+  data = await parseJsonSafe(response, t('Server returned an invalid response. Please try again.'))
       } catch (parseError) {
         data = null
       }
       if (!response.ok) {
-        const message = data?.message || (response.status === 413 ? 'Файл слишком большой для обработки. Сократите размер или разделите документ.' : 'Не удалось сгенерировать вопросы')
+        const message =
+          data?.message ||
+          (response.status === 413
+            ? t('The file is too large to process. Reduce the size or split the document.')
+            : t('Failed to generate questions'))
         throw new Error(message)
       }
       if (!data || !Array.isArray(data.questions) || data.questions.length === 0) {
-        throw new Error('AI не вернул вопросы. Попробуйте другой документ.')
+        throw new Error(t('AI did not return any questions. Try another document.'))
       }
       setQuestions(data.questions.map((question: Question) => ({
         ...question,
@@ -153,7 +162,7 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
       })))
       setStep(2)
     } catch (error: any) {
-      const message = error?.message || 'Ошибка AI генерации'
+      const message = error?.message || t('AI generation failed')
       setAiFileError(message)
       alert(message)
     } finally {
@@ -171,13 +180,13 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
     }
     if (!file.type?.includes('pdf')) {
       setAiFile(null)
-      setAiFileError('Поддерживаются только PDF файлы')
+      setAiFileError(t('Only PDF files are supported'))
       event.target.value = ''
       return
     }
     if (file.size > MAX_AI_FILE_SIZE_BYTES) {
       setAiFile(null)
-      setAiFileError(`Файл слишком большой (максимум ${MAX_AI_FILE_SIZE_MB} МБ)`)
+      setAiFileError(t('File is too large (maximum {{size}} MB)', { size: MAX_AI_FILE_SIZE_MB }))
       event.target.value = ''
       return
     }
@@ -203,7 +212,7 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
 
     if (creationMode === 'ai-text') {
       if (!aiPrompt.trim()) {
-        alert('Опишите тему квиза для AI')
+        alert(t('Describe the quiz topic for AI'))
         return
       }
       await handleGenerateQuestionsFromText()
@@ -211,7 +220,7 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
     }
 
     if (!aiFile) {
-      alert('Загрузите PDF файл для AI')
+      alert(t('Upload a PDF file for AI'))
       return
     }
 
@@ -220,7 +229,7 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
 
   const createQuiz = async () => {
     if (!selectedGroupId) {
-      alert('Выберите группу для квиза')
+      alert(t('Select a group for the quiz'))
       return
     }
     setLoading(true)
@@ -232,7 +241,7 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
         body: JSON.stringify({ title, description, questions }),
       })
       const quizPayload = await quizResponse.json()
-      if (!quizResponse.ok) throw new Error(quizPayload?.message || 'Не удалось создать квиз')
+  if (!quizResponse.ok) throw new Error(quizPayload?.message || t('Failed to create quiz'))
 
       const quizId = quizPayload.quiz.id
       const instanceResponse = await fetch(`/api/mentor/quizzes/${quizId}/instances`, {
@@ -243,13 +252,13 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
       })
       const instancePayload = await instanceResponse.json().catch(() => ({}))
       if (!instanceResponse.ok) {
-        throw new Error(instancePayload?.message || 'Квиз создан, но не удалось привязать группу')
+        throw new Error(instancePayload?.message || t('Quiz created, but failed to link the group'))
       }
 
       onCreated?.(quizId)
       resetWizard()
     } catch (error: any) {
-      alert(error?.message || 'Ошибка при создании квиза')
+      alert(error?.message || t('Failed to create the quiz'))
     } finally {
       setLoading(false)
     }
@@ -274,38 +283,38 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
               <textarea value={description} onChange={e=>setDescription(e.target.value)} className="w-full border rounded px-3 py-2" />
             </div>
             <div>
-              <label className="block text-sm mb-1">Способ создания</label>
+              <label className="block text-sm mb-1">{t('Creation method')}</label>
               <div className="grid gap-2 md:grid-cols-3">
                 <button
                   type="button"
                   onClick={() => setCreationMode('manual')}
                   className={`rounded border px-3 py-2 text-left text-sm transition ${creationMode === 'manual' ? 'border-primary-400 bg-primary-50 text-primary-700' : 'border-gray-200 hover:border-gray-300'}`}
                 >
-                  <div className="font-semibold">Ручной режим</div>
-                  <div className="text-xs text-gray-500">Самостоятельно заполните вопросы и ответы.</div>
+                  <div className="font-semibold">{t('Manual mode')}</div>
+                  <div className="text-xs text-gray-500">{t('Enter questions and answers yourself.')}</div>
                 </button>
                 <button
                   type="button"
                   onClick={() => setCreationMode('ai-text')}
                   className={`rounded border px-3 py-2 text-left text-sm transition ${creationMode === 'ai-text' ? 'border-primary-400 bg-primary-50 text-primary-700' : 'border-gray-200 hover:border-gray-300'}`}
                 >
-                  <div className="font-semibold">AI из текста</div>
-                  <div className="text-xs text-gray-500">Опишите материал — AI подготовит квиз.</div>
+                  <div className="font-semibold">{t('AI from text')}</div>
+                  <div className="text-xs text-gray-500">{t('Describe the material and AI will prepare a quiz.')}</div>
                 </button>
                 <button
                   type="button"
                   onClick={() => setCreationMode('ai-file')}
                   className={`rounded border px-3 py-2 text-left text-sm transition ${creationMode === 'ai-file' ? 'border-primary-400 bg-primary-50 text-primary-700' : 'border-gray-200 hover:border-gray-300'}`}
                 >
-                  <div className="font-semibold">AI из PDF</div>
-                  <div className="text-xs text-gray-500">Загрузите документ — AI извлечёт текст и создаст квиз.</div>
+                  <div className="font-semibold">{t('AI from PDF')}</div>
+                  <div className="text-xs text-gray-500">{t('Upload a document and AI will extract the text to build a quiz.')}</div>
                 </button>
               </div>
             </div>
             {creationMode === 'ai-text' && (
               <div className="space-y-3 rounded border border-primary-100 bg-primary-50/50 p-4">
                 <div>
-                  <label className="block text-sm mb-1">Уровень сложности</label>
+                  <label className="block text-sm mb-1">{t('Difficulty level')}</label>
                   <div className="flex flex-wrap gap-2">
                     {difficultyOptions.map((option) => (
                       <button
@@ -322,20 +331,20 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
                       </button>
                     ))}
                   </div>
-                  <p className="mt-1 text-xs text-gray-500">Подберите сложность, на которую AI будет ориентироваться при составлении вопросов.</p>
+                  <p className="mt-1 text-xs text-gray-500">{t('Choose a difficulty level that AI should follow when creating questions.')}</p>
                 </div>
                 <div>
-                  <label className="block text-sm mb-1">Описание для AI</label>
+                  <label className="block text-sm mb-1">{t('Prompt for AI')}</label>
                   <textarea
                     value={aiPrompt}
                     onChange={(e) => setAiPrompt(e.target.value)}
                     rows={4}
                     className="w-full rounded border px-3 py-2"
-                    placeholder="Например: прочитай текст о круговороте воды и подготовь вопросы для проверки понимания"
+                    placeholder={t('For example: read the text about the water cycle and prepare comprehension questions.')}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm mb-1">Количество вопросов</label>
+                  <label className="block text-sm mb-1">{t('Number of questions')}</label>
                   <input
                     type="number"
                     min={1}
@@ -345,13 +354,13 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
                     className="w-32 rounded border px-3 py-2"
                   />
                 </div>
-                <p className="text-xs text-gray-500">AI сгенерирует тест и его можно будет отредактировать на следующем шаге.</p>
+                <p className="text-xs text-gray-500">{t('AI will prepare a draft quiz that you can edit on the next step.')}</p>
               </div>
             )}
             {creationMode === 'ai-file' && (
               <div className="space-y-3 rounded border border-primary-100 bg-primary-50/50 p-4">
                 <div>
-                  <label className="block text-sm mb-1">Уровень сложности</label>
+                  <label className="block text-sm mb-1">{t('Difficulty level')}</label>
                   <div className="flex flex-wrap gap-2">
                     {difficultyOptions.map((option) => (
                       <button
@@ -368,10 +377,10 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
                       </button>
                     ))}
                   </div>
-                  <p className="mt-1 text-xs text-gray-500">AI будет придерживаться выбранного уровня, расставляя баланс сложности в создаваемом квизе.</p>
+                  <p className="mt-1 text-xs text-gray-500">{t('AI will use the selected level to balance the difficulty of generated questions.')}</p>
                 </div>
                 <div>
-                  <label className="block text-sm mb-1">PDF документ</label>
+                  <label className="block text-sm mb-1">{t('PDF document')}</label>
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -382,13 +391,13 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
                   {aiFile && (
                     <div className="mt-2 flex items-center justify-between rounded border border-dashed border-primary-200 bg-white px-3 py-2 text-xs text-primary-700">
                       <span className="truncate" title={aiFile.name}>{aiFile.name}</span>
-                      <button type="button" onClick={clearAiFile} className="ml-2 text-primary-500 hover:text-primary-700">Удалить</button>
+                      <button type="button" onClick={clearAiFile} className="ml-2 text-primary-500 hover:text-primary-700">{t('Remove')}</button>
                     </div>
                   )}
                   {aiFileError && <div className="mt-1 text-xs text-red-600">{aiFileError}</div>}
                 </div>
                 <div>
-                  <label className="block text-sm mb-1">Количество вопросов</label>
+                  <label className="block text-sm mb-1">{t('Number of questions')}</label>
                   <input
                     type="number"
                     min={1}
@@ -398,22 +407,24 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
                     className="w-32 rounded border px-3 py-2"
                   />
                 </div>
-                <p className="text-xs text-gray-500">Документ будет преобразован в текст, после чего AI сгенерирует вопросы. При необходимости отредактируйте их на следующем шаге.</p>
+                <p className="text-xs text-gray-500">{t('The document will be converted to text so AI can generate questions. You can edit them on the next step.')}</p>
               </div>
             )}
             <div>
               <label className="block text-sm mb-1">Assign to group</label>
               {groupsLoading ? (
-                <div className="text-sm text-gray-500">Загрузка групп…</div>
+                <div className="text-sm text-gray-500">{t('Loading groups...')}</div>
               ) : groupsError ? (
                 <div className="text-sm text-red-600">{groupsError}</div>
               ) : groups.length === 0 ? (
                 <div className="rounded border border-dashed border-gray-300 bg-gray-50 p-3 text-sm text-gray-500">
-                  Пока нет доступных групп. <Link href="/mentor/groups" className="font-medium text-primary-600">Создайте группу</Link>, затем вернитесь.
+                  {t('No groups available yet.')}{' '}
+                  <Link href="/mentor/groups" className="font-medium text-primary-600">{t('Create a group')}</Link>{' '}
+                  {t('and come back to link this quiz.')}
                 </div>
               ) : (
                 <select value={selectedGroupId} onChange={(e) => setSelectedGroupId(e.target.value)} className="w-full rounded border px-3 py-2">
-                  <option value="">Выберите группу…</option>
+                  <option value="">{t('Select a group...')}</option>
                   {groups.map((group) => (
                     <option key={group.id} value={group.id}>
                       {group.name}{group.term ? ` • ${group.term}` : ''}
@@ -429,7 +440,7 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
               disabled={!title.trim() || !selectedGroupId || groupsLoading || groups.length === 0 || aiGenerating}
               className="px-4 py-2 rounded bg-primary-600 text-white disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {aiGenerating ? 'Генерация…' : 'Next'}
+              {aiGenerating ? t('Generating...') : t('Next')}
             </button>
           </div>
         </motion.div>
@@ -466,13 +477,13 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
                           }}
                           className="w-full border border-transparent bg-transparent focus:border-primary-300 focus:bg-white focus:outline-none"
                         />
-                        {isCorrect && <span className="text-xs font-semibold text-green-600">Правильный ответ</span>}
+                        {isCorrect && <span className="text-xs font-semibold text-green-600">{t('Correct answer')}</span>}
                       </div>
                     )
                   })}
                 </div>
                 <div className="mt-3">
-                  <div className="text-xs font-semibold uppercase text-gray-500">Сложность</div>
+                  <div className="text-xs font-semibold uppercase text-gray-500">{t('Difficulty')}</div>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {difficultyOptions.map((option) => (
                       <button
@@ -502,7 +513,7 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
             <button
               onClick={() => {
                 if (!questions.length) {
-                  alert('Добавьте минимум один вопрос')
+                  alert(t('Add at least one question'))
                   return
                 }
                 setStep(3)
@@ -517,21 +528,21 @@ export const QuizBuilderWizard: React.FC<Props> = ({ onCreated }) => {
       {step === 3 && (
         <motion.div initial={{ opacity:0, y:10}} animate={{ opacity:1, y:0 }}>
           <div>
-            <div className="text-sm text-gray-600 mb-2">Review</div>
+            <div className="text-sm text-gray-600 mb-2">{t('Review')}</div>
             <div className="font-semibold">{title}</div>
             <div className="text-gray-600">{description || '—'}</div>
-            <div className="mt-2 text-sm text-gray-600">Группа: {groups.find((g) => g.id === selectedGroupId)?.name || '—'}</div>
-            <div className="mt-4 text-sm">Questions: {questions.length}</div>
+            <div className="mt-2 text-sm text-gray-600">{t('Group')}: {groups.find((g) => g.id === selectedGroupId)?.name || '—'}</div>
+            <div className="mt-4 text-sm">{t('Questions')}: {questions.length}</div>
             <div className="mt-4 space-y-3">
               {questions.map((question, index) => (
                 <div key={index} className="rounded border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
                   <div className="flex items-center justify-between text-xs uppercase text-gray-500">
-                    <span>Вопрос {index + 1}</span>
+                    <span>{t('Question')} {index + 1}</span>
                     <span>{difficultyOptions.find((item) => item.value === (question.difficulty ?? 'medium'))?.label ?? '—'}</span>
                   </div>
                   <p className="mt-1 text-gray-700">{question.text || '—'}</p>
                   <p className="mt-2 text-xs text-gray-500">
-                    Правильный ответ: {(() => {
+                    {t('Correct answer')}: {(() => {
                       const correctIdx = question.correct_indexes?.[0] ?? 0
                       return question.choices?.[correctIdx] ?? '—'
                     })()}

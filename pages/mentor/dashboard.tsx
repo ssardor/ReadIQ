@@ -4,8 +4,17 @@ import { GetServerSideProps } from 'next'
 import { requireMentor } from '@/utils/roleGuard'
 import { motion } from 'framer-motion'
 import { BackButton } from '@/components/BackButton'
+import { useTranslation } from '@/components/SettingsProvider'
 
 export default function MentorDashboard() {
+  const t = useTranslation()
+  const quickActions = [
+    t('Create Group'),
+    t('Create Quiz'),
+    t('Start Live Quiz'),
+    t('Invite Students'),
+  ]
+
   return (
     <>
       <Head>
@@ -15,15 +24,15 @@ export default function MentorDashboard() {
         <div className="max-w-7xl mx-auto p-6">
           <BackButton href="/dashboard" className="mb-4" />
           <div className="mb-6">
-            <h1 className="text-3xl font-bold">Mentor Dashboard</h1>
-            <p className="text-gray-600">Быстрый обзор метрик и действий</p>
+            <h1 className="text-3xl font-bold">{t('Mentor Dashboard')}</h1>
+            <p className="text-gray-600">{t('Quick overview of key metrics and actions')}</p>
           </div>
           <div className="grid md:grid-cols-4 gap-4">
             {[
-              { title: 'Active Groups', value: '—' },
-              { title: 'Active quizzes today', value: '—' },
-              { title: 'Avg comprehension', value: '—' },
-              { title: 'Alerts', value: '—' },
+              { title: t('Active groups'), value: '—' },
+              { title: t('Active quizzes today'), value: '—' },
+              { title: t('Average comprehension'), value: '—' },
+              { title: t('Alerts'), value: '—' },
             ].map((c, i) => (
               <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="bg-white rounded-lg shadow p-4">
                 <div className="text-sm text-gray-500">{c.title}</div>
@@ -32,8 +41,16 @@ export default function MentorDashboard() {
             ))}
           </div>
           <div className="mt-8 grid md:grid-cols-3 gap-4">
-            {['Create Group','Create Quiz','Start Live Quiz','Invite Students'].map((a,i)=> (
-              <motion.button key={a} initial={{ opacity:0, scale: .98}} animate={{ opacity:1, scale:1}} transition={{ delay: .2 + i*.05}} className="bg-primary-600 text-white rounded-md px-4 py-3 shadow hover:bg-primary-700">{a}</motion.button>
+            {quickActions.map((label, index) => (
+              <motion.button
+                key={label}
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.2 + index * 0.05 }}
+                className="bg-primary-600 text-white rounded-md px-4 py-3 shadow hover:bg-primary-700"
+              >
+                {label}
+              </motion.button>
             ))}
           </div>
         </div>
