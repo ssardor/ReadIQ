@@ -12,7 +12,7 @@ export default function Verify() {
   const [joinMessage, setJoinMessage] = useState<string>('')
   const joinAttemptedRef = useRef(false)
   const [joinToken, setJoinToken] = useState<string | null>(null)
-  const [sessionReady, setSessionReady] = useState(true)
+  const [sessionReady, setSessionReady] = useState(false)
 
   useEffect(() => {
     const queryToken = typeof router.query.joinToken === 'string' ? router.query.joinToken : null
@@ -66,6 +66,8 @@ export default function Verify() {
       }
 
       syncSession()
+    } else {
+      setSessionReady(true)
     }
   }, [router.query])
 
